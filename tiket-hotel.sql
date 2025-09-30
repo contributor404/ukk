@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 30 Sep 2025 pada 16.09
+-- Waktu pembuatan: 30 Sep 2025 pada 16.49
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -52,7 +52,7 @@ INSERT INTO `hotel` (`id`, `name`, `image`, `description`, `harga`, `slug`, `tot
 (8, 'Royal Heritage', 'https://picsum.photos/seed/hotel8/600/400', 'Hotel klasik dengan desain elegan dan layanan premium.', 1500000, 'royal-heritage-8', 10),
 (9, 'Blue Lagoon Inn', 'https://picsum.photos/seed/hotel9/600/400', 'Hotel kecil dekat danau dengan suasana romantis.', 550000, 'blue-lagoon-inn-9', 10),
 (10, 'Golden Palm Resort', 'https://picsum.photos/seed/hotel10/600/400', 'Resor tropis dengan fasilitas spa, gym, dan private villa.', 2000000, 'golden-palm-resort-10', 10),
-(11, 'Hotel OYO', 'images/1759239755_349_hmpp.gif', 'Gak perlu kata kata yang penting bukti nyata', 1200000, 'hotel-oyo-11', 10);
+(11, 'Hotel OYO', 'images/1759239755_349_hmpp.gif', 'Gak perlu kata kata yang penting bukti nyata', 1200000, 'hotel-oyo-11', 9);
 
 -- --------------------------------------------------------
 
@@ -80,8 +80,30 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`id`, `code`, `hotel_id`, `user_email`, `nama_pemesan`, `phone`, `nights`, `total`, `payment_method`, `status`, `created_at`, `kamar_no`) VALUES
-(3, 'BK2025093015185867', 8, 'user@gmail.com', 'user', '0847574545454', 1, 1500000, 'Transfer Bank', 'paid', '2025-09-30 20:15:20', NULL),
-(4, 'BK2025093015441542', 11, 'user@gmail.com', 'user', '0847574545454', 1, 1200000, 'Kartu Kredit', 'paid', '2025-09-30 20:44:00', NULL);
+(16, 'ORD1759243286880', 1, 'user@gmail.com', 'user', '0', 2, 900000, 'Transfer Bank', 'paid', '2025-09-30 21:41:26', 1),
+(17, 'ORD1759243566848', 11, 'user@gmail.com', 'user', '0', 4, 4800000, 'e-Wallet', 'pending', '2025-09-30 21:46:06', 1);
+
+--
+-- Trigger `orders`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_check_hotel_stock` BEFORE INSERT ON `orders` FOR EACH ROW BEGIN
+    DECLARE available INT;
+
+    SELECT total_kamar INTO available FROM hotel WHERE id = NEW.hotel_id FOR UPDATE;
+
+    IF available <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Stok kamar habis untuk hotel ini';
+    ELSE
+        -- kurangi stok
+        UPDATE hotel
+        SET total_kamar = total_kamar - 1
+        WHERE id = NEW.hotel_id;
+    END IF;
+END
+$$
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -93,6 +115,7 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `nama` varchar(50) NOT NULL,
   `username` varchar(50) NOT NULL,
+  `phone` varchar(50) NOT NULL,
   `email` varchar(50) NOT NULL,
   `password` varchar(100) NOT NULL,
   `role` enum('admin','user') NOT NULL,
@@ -103,9 +126,9 @@ CREATE TABLE `users` (
 -- Dumping data untuk tabel `users`
 --
 
-INSERT INTO `users` (`id`, `nama`, `username`, `email`, `password`, `role`, `created_at`) VALUES
-(1, 'admin', 'admin', 'admin@gmail.com', '21232f297a57a5a743894a0e4a801fc3', 'admin', '2025-09-30 13:19:44'),
-(2, 'user', 'user', 'user@gmail.com', 'ee11cbb19052e40b07aac0ca060c23ee', 'user', '2025-09-30 13:19:44');
+INSERT INTO `users` (`id`, `nama`, `username`, `phone`, `email`, `password`, `role`, `created_at`) VALUES
+(1, 'admin', 'admin', '', 'admin@gmail.com', '21232f297a57a5a743894a0e4a801fc3', 'admin', '2025-09-30 13:19:44'),
+(2, 'user', 'user', '', 'user@gmail.com', 'ee11cbb19052e40b07aac0ca060c23ee', 'user', '2025-09-30 13:19:44');
 
 --
 -- Indexes for dumped tables
@@ -144,7 +167,7 @@ ALTER TABLE `hotel`
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
