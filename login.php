@@ -1,22 +1,43 @@
 <?php
+session_start();
+
 include "./bootstrap.php";
 include "./koneksi.php";
 
-if (isset($_POST["login"])) {
-  $email = $_POST["email"];
-  $password = $_POST["password"];
+if (isset($_GET["logout"])) {
+  $_SESSION["email"] = null;
+  $_SESSION["user_id"] = null;
+  header('Location: login.php');
+}
 
-  $user = $db->query("SELECT * FROM `users` WHERE username='$email' OR email='$email'");
-
-  if ($user->num_rows > 0) {
-    $user_assoc = $user->fetch_assoc();
-    $password_db = $user_assoc["password"];
-    $isVerify = password_verify($password, $password_db);
-    if ($isVerify) {
-      header("Location: index.php");
+$next = '';
+if (isset($_REQUEST['next'])) $next = $_REQUEST['next'];
+if (isset($_POST['login'])) {
+  $email = $db->real_escape_string(trim($_POST['email']));
+  $pass = $db->real_escape_string(trim($_POST['password']));
+  $q = $db->query("SELECT * FROM users WHERE (email='$email' OR username='$email') AND password=md5('$pass') LIMIT 1");
+  if ($q && $q->num_rows) {
+    $u = $q->fetch_assoc();
+    $_SESSION['email'] = $u['email'];
+    $_SESSION['user_id'] = $u['id'];
+    // redirect berdasarkan role atau next
+    if (isset($u['role']) && $u['role'] === 'admin') {
+      header('Location: admin.php');
+      exit;
+    } else {
+      if ($next) {
+        header('Location: ' . $next);
+        exit;
+      } else {
+        header('Location: index.php');
+        exit;
+      }
     }
+  } else {
+    echo '<div class="alert alert-danger">User tidak ditemukan.</div>';
   }
 }
+
 ?>
 
 
@@ -50,6 +71,7 @@ if (isset($_POST["login"])) {
       if ((isset($user) && $user->num_rows == 0) || (isset($isVerify) && !$isVerify)) echo '<p class="text-danger text-center">Email / Password salah!</p>';
       ?>
       <form class="mt-5" action="" method="POST">
+        <input type="hidden" name="next" value="<?= isset($_GET['next']) ? htmlspecialchars($_GET['next']) : '' ?>">
         <div class="mb-3">
           <label for="email" class="form-label">Email / Username</label>
           <input type="text" class="form-control" name="email" id="email" aria-describedby="emailHelp" required>

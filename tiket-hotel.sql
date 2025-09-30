@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 6.0.0-dev+20250829.99d1a9b7cd
+-- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost:3306
--- Generation Time: Sep 21, 2025 at 02:04 PM
--- Server version: 8.4.3
--- PHP Version: 8.3.16
+-- Host: 127.0.0.1
+-- Waktu pembuatan: 30 Sep 2025 pada 16.09
+-- Versi server: 10.4.32-MariaDB
+-- Versi PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,44 +24,143 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `users`
+-- Struktur dari tabel `hotel`
+--
+
+CREATE TABLE `hotel` (
+  `id` int(11) NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `image` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `harga` int(11) DEFAULT 0,
+  `slug` varchar(200) DEFAULT NULL,
+  `total_kamar` int(11) DEFAULT 10
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `hotel`
+--
+
+INSERT INTO `hotel` (`id`, `name`, `image`, `description`, `harga`, `slug`, `total_kamar`) VALUES
+(1, 'Hotel Sakura', 'https://picsum.photos/seed/hotel1/600/400', 'Hotel bergaya Jepang dengan suasana tenang dan nyaman.', 450000, 'hotel-sakura-1', 10),
+(2, 'Grand Horizon', 'https://picsum.photos/seed/hotel2/600/400', 'Hotel mewah dengan pemandangan laut dan fasilitas lengkap.', 1200000, 'grand-horizon-2', 10),
+(3, 'Sunrise Inn', 'https://picsum.photos/seed/hotel3/600/400', 'Penginapan sederhana dekat pusat kota, cocok untuk backpacker.', 250000, 'sunrise-inn-3', 10),
+(4, 'Mountain View Lodge', 'https://picsum.photos/seed/hotel4/600/400', 'Hotel dengan pemandangan gunung indah dan udara segar.', 600000, 'mountain-view-lodge-4', 10),
+(5, 'Ocean Breeze Resort', 'https://picsum.photos/seed/hotel5/600/400', 'Resor tepi pantai dengan kolam renang dan restoran seafood.', 950000, 'ocean-breeze-resort-5', 10),
+(6, 'City Light Hotel', 'https://picsum.photos/seed/hotel6/600/400', 'Hotel modern di pusat kota dengan akses transportasi mudah.', 700000, 'city-light-hotel-6', 10),
+(7, 'Green Valley Hotel', 'https://picsum.photos/seed/hotel7/600/400', 'Penginapan asri dengan taman hijau dan udara sejuk.', 400000, 'green-valley-hotel-7', 10),
+(8, 'Royal Heritage', 'https://picsum.photos/seed/hotel8/600/400', 'Hotel klasik dengan desain elegan dan layanan premium.', 1500000, 'royal-heritage-8', 10),
+(9, 'Blue Lagoon Inn', 'https://picsum.photos/seed/hotel9/600/400', 'Hotel kecil dekat danau dengan suasana romantis.', 550000, 'blue-lagoon-inn-9', 10),
+(10, 'Golden Palm Resort', 'https://picsum.photos/seed/hotel10/600/400', 'Resor tropis dengan fasilitas spa, gym, dan private villa.', 2000000, 'golden-palm-resort-10', 10),
+(11, 'Hotel OYO', 'images/1759239755_349_hmpp.gif', 'Gak perlu kata kata yang penting bukti nyata', 1200000, 'hotel-oyo-11', 10);
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `orders`
+--
+
+CREATE TABLE `orders` (
+  `id` int(11) NOT NULL,
+  `code` varchar(50) NOT NULL,
+  `hotel_id` int(11) NOT NULL,
+  `user_email` varchar(100) DEFAULT NULL,
+  `nama_pemesan` varchar(150) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `nights` int(11) DEFAULT 1,
+  `total` int(11) DEFAULT 0,
+  `payment_method` varchar(50) DEFAULT NULL,
+  `status` varchar(30) DEFAULT 'pending',
+  `created_at` datetime DEFAULT current_timestamp(),
+  `kamar_no` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `orders`
+--
+
+INSERT INTO `orders` (`id`, `code`, `hotel_id`, `user_email`, `nama_pemesan`, `phone`, `nights`, `total`, `payment_method`, `status`, `created_at`, `kamar_no`) VALUES
+(3, 'BK2025093015185867', 8, 'user@gmail.com', 'user', '0847574545454', 1, 1500000, 'Transfer Bank', 'paid', '2025-09-30 20:15:20', NULL),
+(4, 'BK2025093015441542', 11, 'user@gmail.com', 'user', '0847574545454', 1, 1200000, 'Kartu Kredit', 'paid', '2025-09-30 20:44:00', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `users`
 --
 
 CREATE TABLE `users` (
-  `id` int NOT NULL,
+  `id` int(11) NOT NULL,
   `nama` varchar(50) NOT NULL,
   `username` varchar(50) NOT NULL,
   `email` varchar(50) NOT NULL,
   `password` varchar(100) NOT NULL,
-  `role` enum('admin','user') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `role` enum('admin','user') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `users`
+-- Dumping data untuk tabel `users`
 --
 
-INSERT INTO `users` (`id`, `nama`, `username`, `email`, `password`, `role`) VALUES
-(1, 'admin', 'admin', 'admin@gmail.com', '$2y$10$65u8Eqr2AjlmqgPXFASc/.LeON8.mKzDbGlh/imdtw8cP5ytS8qce', 'admin');
+INSERT INTO `users` (`id`, `nama`, `username`, `email`, `password`, `role`, `created_at`) VALUES
+(1, 'admin', 'admin', 'admin@gmail.com', '21232f297a57a5a743894a0e4a801fc3', 'admin', '2025-09-30 13:19:44'),
+(2, 'user', 'user', 'user@gmail.com', 'ee11cbb19052e40b07aac0ca060c23ee', 'user', '2025-09-30 13:19:44');
 
 --
 -- Indexes for dumped tables
 --
 
 --
--- Indexes for table `users`
+-- Indeks untuk tabel `hotel`
+--
+ALTER TABLE `hotel`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indeks untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hotel_id` (`hotel_id`);
+
+--
+-- Indeks untuk tabel `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT untuk tabel yang dibuang
 --
 
 --
--- AUTO_INCREMENT for table `users`
+-- AUTO_INCREMENT untuk tabel `hotel`
+--
+ALTER TABLE `hotel`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
+--
+
+--
+-- Ketidakleluasaan untuk tabel `orders`
+--
+ALTER TABLE `orders`
+  ADD CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`hotel_id`) REFERENCES `hotel` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

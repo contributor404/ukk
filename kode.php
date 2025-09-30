@@ -1,43 +1,66 @@
 <?php
+session_start();
+include "./koneksi.php";
 
-include "./bootstrap.php";
-include "./global.php";
-setLoc("kode");
-include "./navbar.php";
+// Pastikan user login
+if (!isset($_SESSION['email'])) {
+  header("Location: login.php");
+  exit;
+}
 
+// Ambil order ID terakhir dari session / query string
+$order_id = 0;
+if (isset($_GET['id'])) {
+  $order_id = (int)$_GET['id'];
+} elseif (isset($_SESSION['last_order_id'])) {
+  $order_id = (int)$_SESSION['last_order_id'];
+}
+
+if ($order_id <= 0) {
+  echo "<div class='container mt-4'><div class='alert alert-danger'>Pesanan tidak ditemukan.</div></div>";
+  exit;
+}
+
+// Ambil detail pesanan
+$email = $db->real_escape_string($_SESSION['email']);
+$q = $db->query("SELECT o.*, h.name AS hotel_name
+                   FROM orders o
+                   JOIN hotel h ON o.hotel_id = h.id
+                   WHERE o.id=$order_id AND o.user_email='$email'
+                   LIMIT 1");
+if (!$q || !$q->num_rows) {
+  echo "<div class='container mt-4'><div class='alert alert-danger'>Pesanan tidak valid atau bukan milikmu.</div></div>";
+  exit;
+}
+$order = $q->fetch_assoc();
 ?>
 
-
-<!DOCTYPE html>
-<html lang="id">
-
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kode Booking</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Detail Pesanan</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 </head>
-
 <body>
-  <div class="container mt-5 text-center">
-    <div class="card p-4 shadow-sm">
-      <h2 class="text-success">Pesanan Berhasil!</h2>
-      <p class="mt-2">Terima kasih sudah memesan melalui <strong>Luxy</strong></p>
+<div class="container mt-4">
+  <h2>Detail Pemesanan</h2>
+  <div class="card p-3">
+    <p>Terima kasih, <strong><?= htmlspecialchars($order['nama_pemesan']) ?></strong>.</p>
+    <p>Hotel: <strong><?= htmlspecialchars($order['hotel_name']) ?></strong></p>
+    <p>Jumlah malam: <strong><?= (int)$order['nights'] ?></strong></p>
+    <p>Total biaya: <strong>Rp <?= number_format((int)$order['total'],0,',','.') ?></strong></p>
+    <p>Status: <span class="badge bg-warning text-dark"><?= htmlspecialchars($order['status']) ?></span></p>
+    <p>Nomor kamar yang kamu dapatkan: <strong><?= (int)$order['kamar_no'] ?></strong></p>
+    <p>Kode booking (akan aktif setelah admin approve): 
+       <strong><?= $order['code'] ? htmlspecialchars($order['code']) : '-' ?></strong></p>
 
-      <h4 class="mt-4">Kode Booking Anda:</h4>
-      <div class="alert alert-info fs-3 fw-bold">HF123456</div>
-
-      <p><strong>Hotel:</strong> Hotel Nyaman B</p>
-      <p><strong>Check-in:</strong> 25 Sept 2025 &nbsp; | &nbsp; <strong>Check-out:</strong> 27 Sept 2025</p>
-      <p><strong>Total:</strong> Rp 1.000.000</p>
-
-      <div class="mt-4">
-        <a href="./index.php" class="btn btn-secondary me-2">Kembali ke Halaman Utama</a>
-        <button onclick="window.print()" class="btn btn-primary">Print</button>
-      </div>
+    <div class="mt-3">
+      <a class="btn btn-primary" href="history.php">Lihat Riwayat</a>
+      <a class="btn btn-secondary" href="index.php">Kembali Cari Hotel</a>
     </div>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</div>
 </body>
-
 </html>

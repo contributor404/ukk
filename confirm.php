@@ -1,72 +1,106 @@
 <?php
-
+session_start();
 include "./bootstrap.php";
 include "./global.php";
 setLoc("confirm");
 include "./navbar.php";
+include "./koneksi.php";
 
+// paksa login dulu sebelum bisa pesan
+if (!isset($_SESSION['email'])) {
+  $next = 'confirm.php?id=' . $hotel['id'];
+  header('Location: login.php?next=' . urlencode($next));
+  exit;
+}
+
+if (!isset($_GET['id'])) {
+  echo '<div class="container mt-4"><div class="alert alert-danger">Hotel tidak dipilih.</div></div>';
+  exit;
+}
+$id = (int)$_GET['id'];
+$hotel_q = $db->query("SELECT * FROM hotel WHERE id=$id LIMIT 1");
+if (!$hotel_q || !$hotel_q->num_rows) {
+  echo '<div class="container mt-4"><div class="alert alert-danger">Hotel tidak ditemukan.</div></div>';
+  exit;
+}
+$hotel = $hotel_q->fetch_assoc();
+
+$user = null;
+if (isset($_SESSION['email'])) {
+  $e = $db->real_escape_string($_SESSION['email']);
+  $u = $db->query("SELECT * FROM users WHERE email='$e' LIMIT 1");
+  if ($u && $u->num_rows) $user = $u->fetch_assoc();
+}
+
+$already = false;
+if (isset($_SESSION['email'])) {
+  $em = $db->real_escape_string($_SESSION['email']);
+  $check = $db->query("SELECT * FROM orders WHERE hotel_id={$hotel['id']} AND user_email='$em' LIMIT 1");
+  if ($check && $check->num_rows) {
+    $already = true;
+  }
+}
+
+if ($already) {
+  echo '<div class="container mt-4">';
+  echo '<div class="alert alert-warning">Kamu sudah pernah booking hotel ini sebelumnya. Tidak bisa booking lagi.</div>';
+  echo '<a class="btn btn-secondary" href="history.php">Lihat Riwayat Booking</a> ';
+  echo '<a class="btn btn-primary" href="index.php">Kembali</a>';
+  echo '</div>';
+  return;
+}
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Konfirmasi Pesanan</title>
+  <title>Konfirmasi - <?= htmlspecialchars($hotel['name']) ?></title>
 </head>
-
 <body>
-  <div class="container mt-4">
-    <h2>Konfirmasi Pesanan</h2>
-    <div class="row">
-      <div class="col-md-6">
-        <div class="card mb-3">
-          <img src="https://placehold.co/400x400" class="card-img-top" alt="Hotel Dipilih">
-          <div class="card-body">
-            <h5 class="card-title">Hotel Nyaman B</h5>
-            <p class="card-text">Lokasi: Bandung, dekat pusat kota.</p>
-            <p><strong>Check-in:</strong> 25 Sept 2025</p>
-            <p><strong>Check-out:</strong> 27 Sept 2025</p>
-            <p><strong>Total Harga:</strong> Rp 1.000.000</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6">
-        <form action="./kode.php" method="GET">
-          <div class="mb-3">
-            <label class="form-label">Jumlah Malam</label>
-            <input type="number" class="form-control" min="1" placeholder="Misal: 2" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nama Lengkap</label>
-            <input type="text" class="form-control" placeholder="Isi nama sesuai KTP" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" placeholder="email@example.com" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nomor HP</label>
-            <input type="text" class="form-control" placeholder="08xxxxxxxxxx" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Metode Pembayaran</label>
-            <select class="form-select">
-              <option>Pilih...</option>
-              <option>Transfer Bank</option>
-              <option>Kartu Kredit</option>
-              <option>e-Wallet</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-success w-100">Konfirmasi & Bayar</button>
-        </form>
+<div class="container mt-4">
+  <h2>Konfirmasi Pemesanan</h2>
+  <div class="card p-3 mb-3">
+    <div style="display:flex;gap:12px;align-items:center">
+      <img src="<?= $hotel['image'] ?: 'https://placehold.co/200x120' ?>" style="width:200px;height:120px;object-fit:cover">
+      <div>
+        <h4><?= htmlspecialchars($hotel['name']) ?></h4>
+        <p>Harga / malam: Rp <?= number_format((int)$hotel['harga'],0,',','.') ?></p>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+  <form action="order.php" method="POST">
+    <input type="hidden" name="hotel_id" value="<?= $hotel['id'] ?>">
+    <div class="mb-3">
+      <label>Jumlah Malam</label>
+      <input type="number" name="nights" class="form-control" value="1" min="1" required>
+    </div>
+    <div class="mb-3">
+      <label>Nama Pemesan</label>
+      <input type="text" name="nama_pemesan" class="form-control" value="<?= $user ? htmlspecialchars($user['nama']) : '' ?>" required>
+    </div>
+    <div class="mb-3">
+      <label>Email</label>
+      <input type="email" name="email_pemesan" class="form-control" value="<?= $user ? htmlspecialchars($user['email']) : '' ?>" required>
+    </div>
+    <div class="mb-3">
+      <label>Nomor HP</label>
+      <input type="text" name="phone" class="form-control" placeholder="08xxxx" required>
+    </div>
+    <div class="mb-3">
+      <label>Metode Pembayaran</label>
+      <select name="payment_method" class="form-select" required>
+        <option value="">Pilih...</option>
+        <option>Transfer Bank</option>
+        <option>Kartu Kredit</option>
+        <option>e-Wallet</option>
+      </select>
+    </div>
+    <button type="submit" name="booking" class="btn btn-success">Konfirmasi & Buat Kode</button>
+  </form>
 
+</div>
+</body>
 </html>

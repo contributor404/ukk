@@ -8,9 +8,7 @@ if (isset($_POST["register"])) {
   $email = $_POST["email"];
   $password = $_POST["password"];
 
-  $hash_password = password_hash($password, PASSWORD_BCRYPT);
-
-  $db->query("INSERT INTO `users` (`nama`, `username`, `email`, `password`, `role`) VALUES ('$name','$username','$email','$hash_password','user')");
+  $db->query("INSERT INTO `users` (`nama`, `username`, `email`, `password`, `role`) VALUES ('$name','$username','$email',md5('$password'),'user')");
 
   header("Location: login.php");
 }
