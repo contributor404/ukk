@@ -55,7 +55,7 @@ if (isset($_POST['hotel_id'])) {
   // Generate kode unik sederhana (bisa diganti sesuai kebutuhan)
   $code = 'ORD' . time() . rand(100, 999);
 
-  $stmt = $db->prepare("INSERT INTO orders (code, hotel_id, user_email, nama_pemesan, phone, nights, total, payment_method, status, kamar_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
+  $stmt = $db->prepare("INSERT INTO orders (code, hotel_id, user_email, nama_pemesan, phone, nights, total, payment_method, status, kamar_no, expired_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 1 DAY))");
   // ambil email/nama dari users tabel jika tersedia
   $email = '';
   $nama = '';

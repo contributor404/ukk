@@ -33,6 +33,7 @@ if (isset($_SESSION['email']) && isset($db)) {
           <li class="nav-item"><a class="nav-link" href="admin.php">Daftar Hotel</a></li>
           <li class="nav-item"><a class="nav-link" href="admin_orders.php">Daftar Pesanan</a></li>
           <li class="nav-item"><a class="nav-link" href="admin_users.php">Daftar User</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin_check.php">Check Booking</a></li>
           <li class="nav-item"><a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true"><?= htmlspecialchars($nama_user ?: $_SESSION['email']) ?></a></li>
           <li class="nav-item"><a class="nav-link text-danger" href="login.php?logout=1">Logout</a></li>
 

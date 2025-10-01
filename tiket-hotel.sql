@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 30 Sep 2025 pada 16.49
+-- Waktu pembuatan: 01 Okt 2025 pada 13.45
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -30,10 +30,10 @@ SET time_zone = "+00:00";
 CREATE TABLE `hotel` (
   `id` int(11) NOT NULL,
   `name` varchar(150) NOT NULL,
+  `alamat` varchar(255) DEFAULT NULL,
   `image` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `harga` int(11) DEFAULT 0,
-  `slug` varchar(200) DEFAULT NULL,
   `total_kamar` int(11) DEFAULT 10
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -41,18 +41,17 @@ CREATE TABLE `hotel` (
 -- Dumping data untuk tabel `hotel`
 --
 
-INSERT INTO `hotel` (`id`, `name`, `image`, `description`, `harga`, `slug`, `total_kamar`) VALUES
-(1, 'Hotel Sakura', 'https://picsum.photos/seed/hotel1/600/400', 'Hotel bergaya Jepang dengan suasana tenang dan nyaman.', 450000, 'hotel-sakura-1', 10),
-(2, 'Grand Horizon', 'https://picsum.photos/seed/hotel2/600/400', 'Hotel mewah dengan pemandangan laut dan fasilitas lengkap.', 1200000, 'grand-horizon-2', 10),
-(3, 'Sunrise Inn', 'https://picsum.photos/seed/hotel3/600/400', 'Penginapan sederhana dekat pusat kota, cocok untuk backpacker.', 250000, 'sunrise-inn-3', 10),
-(4, 'Mountain View Lodge', 'https://picsum.photos/seed/hotel4/600/400', 'Hotel dengan pemandangan gunung indah dan udara segar.', 600000, 'mountain-view-lodge-4', 10),
-(5, 'Ocean Breeze Resort', 'https://picsum.photos/seed/hotel5/600/400', 'Resor tepi pantai dengan kolam renang dan restoran seafood.', 950000, 'ocean-breeze-resort-5', 10),
-(6, 'City Light Hotel', 'https://picsum.photos/seed/hotel6/600/400', 'Hotel modern di pusat kota dengan akses transportasi mudah.', 700000, 'city-light-hotel-6', 10),
-(7, 'Green Valley Hotel', 'https://picsum.photos/seed/hotel7/600/400', 'Penginapan asri dengan taman hijau dan udara sejuk.', 400000, 'green-valley-hotel-7', 10),
-(8, 'Royal Heritage', 'https://picsum.photos/seed/hotel8/600/400', 'Hotel klasik dengan desain elegan dan layanan premium.', 1500000, 'royal-heritage-8', 10),
-(9, 'Blue Lagoon Inn', 'https://picsum.photos/seed/hotel9/600/400', 'Hotel kecil dekat danau dengan suasana romantis.', 550000, 'blue-lagoon-inn-9', 10),
-(10, 'Golden Palm Resort', 'https://picsum.photos/seed/hotel10/600/400', 'Resor tropis dengan fasilitas spa, gym, dan private villa.', 2000000, 'golden-palm-resort-10', 10),
-(11, 'Hotel OYO', 'images/1759239755_349_hmpp.gif', 'Gak perlu kata kata yang penting bukti nyata', 1200000, 'hotel-oyo-11', 9);
+INSERT INTO `hotel` (`id`, `name`, `alamat`, `image`, `description`, `harga`, `total_kamar`) VALUES
+(1, 'Hotel Oyo jir', 'Jl. Merdeka No. 1, Jakarta', 'https://picsum.photos/seed/hotel1/600/400', 'Kamar anti peluru cocok untuk anggota dpr yang kabur dari pendemo', 450000, 9),
+(2, 'Grand Horizon', 'Jl. Diponegoro No. 23, Bandung', 'https://picsum.photos/seed/hotel2/600/400', 'Hotel mewah dengan pemandangan laut dan fasilitas lengkap.', 1200000, 10),
+(3, 'Sunrise Inn', 'Jl. Sudirman No. 45, Surabaya', 'https://picsum.photos/seed/hotel3/600/400', 'Penginapan sederhana dekat pusat kota, cocok untuk backpacker.', 250000, 10),
+(4, 'Mountain View', 'Jl. Malioboro No. 99, Yogyakarta', 'https://picsum.photos/seed/hotel4/600/400', 'Hotel dengan', 600000, 10),
+(5, 'Ocean Breeze', 'Jl. Gatot Subroto No. 12, Medan', 'https://picsum.photos/seed/hotel5/600/400', 'Resor tepi pantai dengan kolam renang dan restoran seafood.', 950000, 10),
+(6, 'City Light Hotel', 'Jl. Asia Afrika No. 77, Bandung', 'https://picsum.photos/seed/hotel6/600/400', 'Hotel modern di pusat kota dengan akses transportasi mudah.', 700000, 10),
+(7, 'Green Valley Hotel', 'Jl. Ahmad Yani No. 56, Semarang', 'https://picsum.photos/seed/hotel7/600/400', 'Penginapan asri dengan taman hijau dan udara sejuk.', 400000, 10),
+(8, 'Royal Heritage', 'Jl. Gajah Mada No. 34, Denpasar', 'https://picsum.photos/seed/hotel8/600/400', 'Hotel klasik dengan desain elegan dan layanan premium.', 1500000, 10),
+(9, 'Blue Lagoon Inn', 'Jl. Panglima Sudirman No. 88, Malang', 'https://picsum.photos/seed/hotel9/600/400', 'Hotel kecil dekat danau dengan suasana romantis.', 550000, 10),
+(10, 'Golden Palm Resort', 'Jl. Veteran No. 21, Makassar', 'https://picsum.photos/seed/hotel10/600/400', 'Anjay mabar wkwk, vibe coder jir', 2000000, 10);
 
 -- --------------------------------------------------------
 
@@ -63,6 +62,7 @@ INSERT INTO `hotel` (`id`, `name`, `image`, `description`, `harga`, `slug`, `tot
 CREATE TABLE `orders` (
   `id` int(11) NOT NULL,
   `code` varchar(50) NOT NULL,
+  `expired_date` datetime DEFAULT NULL,
   `hotel_id` int(11) NOT NULL,
   `user_email` varchar(100) DEFAULT NULL,
   `nama_pemesan` varchar(150) DEFAULT NULL,
@@ -79,9 +79,8 @@ CREATE TABLE `orders` (
 -- Dumping data untuk tabel `orders`
 --
 
-INSERT INTO `orders` (`id`, `code`, `hotel_id`, `user_email`, `nama_pemesan`, `phone`, `nights`, `total`, `payment_method`, `status`, `created_at`, `kamar_no`) VALUES
-(16, 'ORD1759243286880', 1, 'user@gmail.com', 'user', '0', 2, 900000, 'Transfer Bank', 'paid', '2025-09-30 21:41:26', 1),
-(17, 'ORD1759243566848', 11, 'user@gmail.com', 'user', '0', 4, 4800000, 'e-Wallet', 'pending', '2025-09-30 21:46:06', 1);
+INSERT INTO `orders` (`id`, `code`, `expired_date`, `hotel_id`, `user_email`, `nama_pemesan`, `phone`, `nights`, `total`, `payment_method`, `status`, `created_at`, `kamar_no`) VALUES
+(18, 'ORD1759317260375', '2025-10-02 18:14:20', 1, 'user@gmail.com', 'user', '0', 5, 2250000, 'e-Wallet', 'paid', '2025-10-01 18:14:20', 1);
 
 --
 -- Trigger `orders`
@@ -167,7 +166,7 @@ ALTER TABLE `hotel`
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`

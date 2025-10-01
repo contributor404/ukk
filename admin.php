@@ -20,16 +20,6 @@ if ($role !== 'admin') {
   header('Location: index.php'); exit;
 }
 
-/**
- * Fungsi kecil untuk membuat slug dari nama + id
- */
-function make_slug($name, $id) {
-  $s = strtolower($name);
-  $s = preg_replace('/[^a-z0-9]+/i', '-', $s);
-  $s = trim($s, '-');
-  return $s . '-' . $id;
-}
-
 /** helper upload sederhana **/
 function upload_image($file) {
   // file = $_FILES['image_file']
@@ -64,12 +54,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
     $imgPath = upload_image($_FILES['image_file']);
   }
 
-  // simpan (slug sementara kosong)
   $imgSql = $imgPath ? "'$imgPath'" : "''";
-  $db->query("INSERT INTO hotel (name,image,description,harga,slug) VALUES ('$name',$imgSql,'$description',$harga,'')");
-  $newId = $db->insert_id;
-  $slug = make_slug($name, $newId);
-  $db->query("UPDATE hotel SET slug='$slug' WHERE id=$newId");
+  $db->query("INSERT INTO hotel (name,image,description,harga) VALUES ('$name',$imgSql,'$description',$harga)");
   header("Location: admin.php?msg=added");
   exit;
 }
@@ -103,8 +89,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit' && isset($_POST['id']
     $db->query("UPDATE hotel SET name='$name', description='$description', harga=$harga WHERE id=$id");
   }
 
-  $slug = make_slug($name, $id);
-  $db->query("UPDATE hotel SET slug='$slug' WHERE id=$id");
   header("Location: admin.php?msg=edited");
   exit;
 }
@@ -141,7 +125,7 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
     <h2>Admin Dashboard - Hotel</h2>
 
     <div class="mb-3">
-      <a href="admin.php" class="btn btn-secondary">Daftar Hotel</a>
+      <!-- <a href="admin.php" class="btn btn-secondary">Daftar Hotel</a> -->
       <a href="admin.php?add=1" class="btn btn-primary">Tambah Hotel</a>
     </div>
 
@@ -212,7 +196,7 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
         <h4>Daftar Hotel</h4>
         <table class="table table-bordered">
           <thead class="table-light">
-            <tr><th>ID</th><th>Nama</th><th>Harga</th><th>Slug</th><th>Kamar</th><th>Aksi</th></tr>
+            <tr><th>ID</th><th>Nama</th><th>Harga</th><th>Description</th><th>Kamar</th><th>Aksi</th></tr>
           </thead>
           <tbody>
             <?php while($row = $hotels->fetch_assoc()): ?>
@@ -223,7 +207,7 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
                   <?= htmlspecialchars($row['name']) ?>
                 </td>
                 <td>Rp <?= number_format((int)$row['harga'],0,',','.') ?></td>
-                <td><?= htmlspecialchars($row['slug']) ?></td>
+                <td><?= htmlspecialchars($row['description']) ?></td>
                 <td><?= htmlspecialchars($row['total_kamar']) ?></td>
                 <td>
                   <a class="btn btn-sm btn-warning" href="admin.php?edit=<?= $row['id'] ?>">Edit</a>
