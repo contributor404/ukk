@@ -8,32 +8,36 @@ include "./koneksi.php";
 
 // cek login & role admin (sederhana)
 if (!isset($_SESSION['email'])) {
-  header('Location: login.php'); exit;
+  header('Location: login.php');
+  exit;
 }
 $e = $db->real_escape_string($_SESSION['email']);
 $r = $db->query("SELECT role FROM users WHERE email='$e' LIMIT 1");
 if (!$r || !$r->num_rows) {
-  header('Location: login.php'); exit;
+  header('Location: login.php');
+  exit;
 }
 $role = $r->fetch_assoc()['role'];
 if ($role !== 'admin') {
-  header('Location: index.php'); exit;
+  header('Location: index.php');
+  exit;
 }
 
 /** helper upload sederhana **/
-function upload_image($file) {
+function upload_image($file)
+{
   // file = $_FILES['image_file']
   if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return ''; // tidak ada file
   // cek tipe sederhana
-  $allowed = ['image/jpeg','image/png','image/gif'];
+  $allowed = ['image/jpeg', 'image/png', 'image/gif'];
   if (!in_array($file['type'], $allowed)) return '';
   // buat folder images kalau belum ada
   $dir = __DIR__ . '/images';
   if (!is_dir($dir)) mkdir($dir, 0755, true);
   // buat nama file unik
   $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-  $safe = preg_replace('/[^a-z0-9\-_\.]/i','', pathinfo($file['name'], PATHINFO_FILENAME));
-  $fname = time() . '_' . rand(100,999) . '_' . $safe . '.' . $ext;
+  $safe = preg_replace('/[^a-z0-9\-_\.]/i', '', pathinfo($file['name'], PATHINFO_FILENAME));
+  $fname = time() . '_' . rand(100, 999) . '_' . $safe . '.' . $ext;
   $target = $dir . '/' . $fname;
   if (move_uploaded_file($file['tmp_name'], $target)) {
     // return path relatif yang disimpan ke DB (sesuaikan dengan struktur project)
@@ -115,11 +119,13 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin - Hotel</title>
 </head>
+
 <body>
   <div class="container mt-4">
     <h2>Admin Dashboard - Hotel</h2>
@@ -129,7 +135,7 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
       <a href="admin.php?add=1" class="btn btn-primary">Tambah Hotel</a>
     </div>
 
-    <?php if (isset($_GET['add']) && $_GET['add']==1): ?>
+    <?php if (isset($_GET['add']) && $_GET['add'] == 1): ?>
       <!-- FORM TAMBAH -->
       <div class="card p-3 mb-4">
         <h4>Tambah Hotel</h4>
@@ -157,10 +163,10 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
       </div>
 
     <?php elseif (isset($_GET['edit']) && is_numeric($_GET['edit'])):
-        $eid = (int)$_GET['edit'];
-        $r = $db->query("SELECT * FROM hotel WHERE id=$eid LIMIT 1");
-        $h = $r->fetch_assoc();
-      ?>
+      $eid = (int)$_GET['edit'];
+      $r = $db->query("SELECT * FROM hotel WHERE id=$eid LIMIT 1");
+      $h = $r->fetch_assoc();
+    ?>
       <!-- FORM EDIT -->
       <div class="card p-3 mb-4">
         <h4>Edit Hotel #<?= $h['id'] ?></h4>
@@ -196,17 +202,24 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
         <h4>Daftar Hotel</h4>
         <table class="table table-bordered">
           <thead class="table-light">
-            <tr><th>ID</th><th>Nama</th><th>Harga</th><th>Description</th><th>Kamar</th><th>Aksi</th></tr>
+            <tr>
+              <th>ID</th>
+              <th>Nama</th>
+              <th>Harga</th>
+              <th>Description</th>
+              <th>Kamar</th>
+              <th>Aksi</th>
+            </tr>
           </thead>
           <tbody>
-            <?php while($row = $hotels->fetch_assoc()): ?>
+            <?php while ($row = $hotels->fetch_assoc()): ?>
               <tr>
                 <td><?= $row['id'] ?></td>
                 <td>
                   <img src="<?= $row['image'] ?: 'https://placehold.co/80x80' ?>" style="width:80px;height:50px;object-fit:cover;margin-right:8px">
                   <?= htmlspecialchars($row['name']) ?>
                 </td>
-                <td>Rp <?= number_format((int)$row['harga'],0,',','.') ?></td>
+                <td>Rp <?= number_format((int)$row['harga'], 0, ',', '.') ?></td>
                 <td><?= htmlspecialchars($row['description']) ?></td>
                 <td><?= htmlspecialchars($row['total_kamar']) ?></td>
                 <td>
@@ -222,4 +235,5 @@ $hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
 
   </div>
 </body>
+
 </html>

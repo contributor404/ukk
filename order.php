@@ -73,7 +73,7 @@ if (isset($_POST['hotel_id'])) {
 
   // total = harga hotel * malam
   $harga = (int)$hotel['harga'];
-  $total = $harga * $nights;
+  $total = $harga * $nights;  
 
   echo $total;
   echo $harga;
