@@ -1,46 +1,157 @@
 <?php
 session_start();
-include "./bootstrap.php";
-include "./global.php";
-setLoc("index");
-include "./navbar.php";
-include "./koneksi.php";
-
-$hotels = $db->query("SELECT * FROM hotel ORDER BY id ASC");
+include 'koneksi.php';
+include 'bootstrap.php';
 ?>
-<!doctype html>
-<html>
-
+<!DOCTYPE html>
+<html lang="id">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Daftar Hotel</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Booking - Temukan Kamar Terbaik</title>
+    <!-- Custom CSS -->
+    <style>
+        .hero-section {
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 150px 0;
+            margin-bottom: 50px;
+        }
+        
+        .room-card {
+            transition: transform 0.3s;
+            margin-bottom: 30px;
+            height: 100%;
+        }
+        
+        .room-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .room-img {
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .facilities-icons {
+            font-size: 1.2rem;
+            color: #0d6efd;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="container mt-4">
-    <h2>Daftar Hotel</h2>
-    <div class="row">
-      <?php while ($h = $hotels->fetch_assoc()): ?>
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <img src="<?= $h['image'] ?: 'https://placehold.co/600x400' ?>" style="width:100%;height:180px;object-fit:cover">
-            <div class="card-body">
-              <h5><?= htmlspecialchars($h['name']) ?></h5>
-              <p>Rp <?= number_format((int)$h['harga'], 0, ',', '.') ?></p>
-              <p><?= htmlspecialchars(substr($h['description'], 0, 80)) ?>...</p>
-              <?php if (isset($_SESSION['email'])): ?>
-                <a href="confirm.php?id=<?= $h['id'] ?>" class="btn btn-primary">Pesan</a>
-              <?php else: ?>
-                <a href="login.php?next=<?= urlencode('confirm.php?id=' . $h['id']) ?>" class="btn btn-secondary">Login untuk Pesan</a>
-              <?php endif; ?>
+    <!-- Navbar sudah diinclude dari bootstrap.php -->
 
-            </div>
-          </div>
+    <!-- Hero Section -->
+    <section class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-3 fw-bold mb-4">Temukan Kenyamanan Menginap</h1>
+            <p class="lead mb-5">Nikmati pengalaman menginap terbaik dengan fasilitas lengkap dan pelayanan prima</p>
+            <a href="kamar_semua.php" class="btn btn-primary btn-lg px-5 py-3">Lihat Semua Kamar</a>
         </div>
-      <?php endwhile; ?>
-    </div>
-  </div>
-</body>
+    </section>
 
+    <!-- Room Types Section -->
+    <section class="container mb-5">
+        <h2 class="text-center mb-5">Tipe Kamar Unggulan</h2>
+        <div class="row" id="room-list">
+            <?php
+            // Query untuk mengambil data tipe kamar
+            $query = "SELECT rt.*, r.image FROM room_types rt LEFT JOIN rooms r ON rt.id = r.room_type_id ORDER BY price_per_night LIMIT 6";
+            $result = mysqli_query($koneksi, $query);
+            
+            // Cek apakah ada data
+            if (mysqli_num_rows($result) > 0) {
+                // Tampilkan data tipe kamar
+                while ($row = mysqli_fetch_assoc($result)) {
+                    // Konversi fasilitas dari format teks ke array
+                    $facilities = explode(",", $row['facilities']);
+                    $facilities_icons = '';
+                    
+                    // Buat ikon untuk setiap fasilitas
+                    foreach ($facilities as $facility) {
+                        $facility = trim($facility);
+                        $icon = 'fa-check';
+                        
+                        // Tentukan ikon berdasarkan fasilitas
+                        if (stripos($facility, 'wifi') !== false) {
+                            $icon = 'fa-wifi';
+                        } elseif (stripos($facility, 'tv') !== false || stripos($facility, 'televisi') !== false) {
+                            $icon = 'fa-tv';
+                        } elseif (stripos($facility, 'ac') !== false || stripos($facility, 'air') !== false) {
+                            $icon = 'fa-snowflake';
+                        } elseif (stripos($facility, 'sarapan') !== false || stripos($facility, 'breakfast') !== false) {
+                            $icon = 'fa-utensils';
+                        } elseif (stripos($facility, 'parkir') !== false || stripos($facility, 'parking') !== false) {
+                            $icon = 'fa-car';
+                        }
+                        
+                        $facilities_icons .= "<span class='me-3'><i class='fas {$icon} me-1'></i> {$facility}</span>";
+                    }
+                    
+                    // Format harga
+                    $formatted_price = number_format($row['price_per_night'], 0, ',', '.');
+                    
+                    echo "<div class='col-md-4 mb-4'>";
+                    echo "<div class='card room-card shadow'>";
+                    echo "<img src='{$row['image']}' class='card-img-top room-img' alt='{$row['name']}'>";
+                    echo "<div class='card-body'>";
+                    echo "<h5 class='card-title'>{$row['name']}</h5>";
+                    echo "<p class='card-text'>{$row['description']}</p>";
+                    echo "<div class='d-flex justify-content-between align-items-center mb-3'>";
+                    echo "<span class='badge bg-primary rounded-pill'>Kapasitas: {$row['capacity']} orang</span>";
+                    echo "<span class='fw-bold text-primary'>Rp {$formatted_price}/malam</span>";
+                    echo "</div>";
+                    echo "<div class='facilities-icons mb-3'>{$facilities_icons}</div>";
+                    echo "<a href='kamar_detail.php?id={$row['id']}' class='btn btn-outline-primary w-100'>Lihat Detail</a>";
+                    echo "</div>";
+                    echo "</div>";
+                    echo "</div>";
+                }
+            } else {
+                echo "<div class='col-12'><p class='text-center'>Tidak ada tipe kamar yang tersedia saat ini.</p></div>";
+            }
+            ?>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Hotel Booking</h5>
+                    <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
+                </div>
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Kontak</h5>
+                    <p><i class="fas fa-map-marker-alt me-2"></i> Jl. Hotel Indah No. 123, Kota</p>
+                    <p><i class="fas fa-phone me-2"></i> (021) 1234-5678</p>
+                    <p><i class="fas fa-envelope me-2"></i> info@hotelbooking.com</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Ikuti Kami</h5>
+                    <div class="d-flex gap-3 fs-4">
+                        <a href="#" class="text-white"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- No JavaScript needed as we're using PHP to load data -->
+</body>
 </html>
