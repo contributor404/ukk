@@ -16,15 +16,17 @@ $query = "SELECT rt.*,
         (SELECT COUNT(*) FROM rooms r WHERE r.room_type_id = rt.id AND r.status = 'available') as available_rooms
         FROM room_types rt 
         WHERE rt.id = $id";
-$result = mysqli_query($koneksi, $query);
+$result = $koneksi->query($query);
+
+var_dump($result->num_rows);
 
 // Cek apakah data ditemukan
-if (mysqli_num_rows($result) == 0) {
+if ($result->num_rows == 0) {
     header('Location: index.php');
     exit;
 }
 
-$room = mysqli_fetch_assoc($result);
+$room = $result->fetch_assoc();
 
 // Format harga
 $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
@@ -34,6 +36,7 @@ $facilities = explode(",", $room['facilities']);
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -44,27 +47,27 @@ $facilities = explode(",", $room['facilities']);
             object-fit: cover;
             border-radius: 10px;
         }
-        
+
         .facility-item {
             margin-bottom: 15px;
         }
-        
+
         .facility-icon {
             font-size: 1.5rem;
             color: #0d6efd;
             margin-right: 10px;
         }
-        
+
         .price-tag {
             font-size: 2rem;
             font-weight: bold;
             color: #0d6efd;
         }
-        
+
         .availability-badge {
             font-size: 1.2rem;
         }
-        
+
         .booking-form {
             background-color: #f8f9fa;
             border-radius: 10px;
@@ -72,6 +75,7 @@ $facilities = explode(",", $room['facilities']);
         }
     </style>
 </head>
+
 <body>
     <!-- Room Detail Section -->
     <div class="container my-5">
@@ -86,13 +90,13 @@ $facilities = explode(",", $room['facilities']);
                 </nav>
             </div>
         </div>
-        
+
         <div class="row">
             <!-- Room Images -->
             <div class="col-lg-8 mb-4">
-                <img src="<?= !empty($room['room_image']) ? $room['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>" 
-                     class="img-fluid room-image w-100 mb-4" alt="<?= $room['name'] ?>">
-                
+                <img src="<?= !empty($room['room_image']) ? $room['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>"
+                    class="img-fluid room-image w-100 mb-4" alt="<?= $room['name'] ?>">
+
                 <div class="row">
                     <div class="col-4">
                         <img src="https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg" class="img-fluid rounded" alt="Bathroom">
@@ -105,18 +109,18 @@ $facilities = explode(",", $room['facilities']);
                     </div>
                 </div>
             </div>
-            
+
             <!-- Room Info -->
             <div class="col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <h1 class="card-title mb-4"><?= $room['name'] ?></h1>
-                        
+
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <span class="price-tag">Rp <?= $formatted_price ?></span>
                             <span class="text-muted">per malam</span>
                         </div>
-                        
+
                         <?php if ($room['available_rooms'] > 0): ?>
                             <div class="mb-4">
                                 <span class="badge bg-success availability-badge">Tersedia <?= $room['available_rooms'] ?> kamar</span>
@@ -126,20 +130,20 @@ $facilities = explode(",", $room['facilities']);
                                 <span class="badge bg-danger availability-badge">Tidak tersedia</span>
                             </div>
                         <?php endif; ?>
-                        
+
                         <div class="mb-4">
                             <h5>Kapasitas:</h5>
                             <p><i class="fas fa-user me-2"></i> <?= $room['capacity'] ?> orang</p>
                         </div>
-                        
+
                         <div class="mb-4">
                             <h5>Fasilitas:</h5>
                             <ul class="list-unstyled">
                                 <?php foreach ($facilities as $facility): ?>
-                                    <?php 
+                                    <?php
                                     $facility = trim($facility);
                                     $icon = 'fa-check';
-                                    
+
                                     // Tentukan ikon berdasarkan fasilitas
                                     if (stripos($facility, 'wifi') !== false) {
                                         $icon = 'fa-wifi';
@@ -159,23 +163,23 @@ $facilities = explode(",", $room['facilities']);
                                 <?php endforeach; ?>
                             </ul>
                         </div>
-                        
+
                         <?php if ($room['available_rooms'] > 0): ?>
-                          <?php if (isset($_SESSION["user_id"])): ?>
-                            <a href="kamar_pesan.php?id=<?= $room['id'] ?>" class="btn btn-primary btn-lg w-100 mb-3">Pesan Sekarang</a>
-                          <?php else: ?>
-                            <a href="login.php" class="btn btn-primary btn-lg w-100 mb-3">Pesan Sekarang</a>
-                          <?php endif; ?>
+                            <?php if (isset($_SESSION["user_id"])): ?>
+                                <a href="kamar_pesan.php?id=<?= $room['id'] ?>" class="btn btn-primary btn-lg w-100 mb-3">Pesan Sekarang</a>
+                            <?php else: ?>
+                                <a href="login.php" class="btn btn-primary btn-lg w-100 mb-3">Pesan Sekarang</a>
+                            <?php endif; ?>
                         <?php else: ?>
                             <button class="btn btn-secondary btn-lg w-100 mb-3" disabled>Tidak Tersedia</button>
                         <?php endif; ?>
-                        
+
                         <a href="kamar_semua.php" class="btn btn-outline-secondary w-100">Lihat Kamar Lainnya</a>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Room Description -->
         <div class="row mt-5">
             <div class="col-12">
@@ -223,4 +227,5 @@ $facilities = explode(",", $room['facilities']);
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

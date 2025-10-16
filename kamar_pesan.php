@@ -23,15 +23,15 @@ $query = "SELECT r.*, rt.name as room_type, rt.price_per_night, rt.capacity
           FROM rooms r 
           JOIN room_types rt ON r.room_type_id = rt.id 
           WHERE r.id = $room_id AND r.status = 'available'";
-$result = mysqli_query($koneksi, $query);
+$result = $koneksi->query($query);
 
 // Cek apakah kamar ditemukan dan tersedia
-if (mysqli_num_rows($result) == 0) {
+if ($result->num_rows == 0) {
     header('Location: kamar_semua.php');
     exit;
 }
 
-$room = mysqli_fetch_assoc($result);
+$room = $result->fetch_assoc();
 
 // Proses form pemesanan
 $success = '';
@@ -39,9 +39,8 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Validasi input
-    $check_in = mysqli_real_escape_string($koneksi, $_POST['check_in']);
-    $check_out = mysqli_real_escape_string($koneksi, $_POST['check_out']);
-    $payment_method = mysqli_real_escape_string($koneksi, $_POST['payment_method']);
+    $check_in = $koneksi->real_escape_string($_POST['check_in']);
+    $check_out = $koneksi->real_escape_string($_POST['check_out']);
     
     // Validasi tanggal
     $today = date('Y-m-d');
@@ -62,36 +61,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $booking_code = 'BK' . date('YmdHis') . rand(100, 999);
         
         // Mulai transaksi
-        mysqli_begin_transaction($koneksi);
+        $koneksi->begin_transaction();
         
         try {
             // Insert ke tabel bookings
             $query_booking = "INSERT INTO bookings (booking_code, user_id, room_id, check_in, check_out, total_price, status) 
                              VALUES ('$booking_code', $user_id, $room_id, '$check_in', '$check_out', $total_price, 'pending')";
             
-            if (!mysqli_query($koneksi, $query_booking)) {
-                throw new Exception("Error saat menyimpan pemesanan: " . mysqli_error($koneksi));
+            if (!$koneksi->query($query_booking)) {
+                throw new Exception("Error saat menyimpan pemesanan: ");
             }
             
-            $booking_id = mysqli_insert_id($koneksi);
+            $booking_id = $koneksi->insert_id;
             
             // Insert ke tabel payments
-            $query_payment = "INSERT INTO payments (booking_id, payment_method, amount, status) 
-                             VALUES ($booking_id, '$payment_method', $total_price, 'pending')";
+            $query_payment = "INSERT INTO payments (booking_id, amount, status) 
+                             VALUES ($booking_id, $total_price, 'pending')";
             
-            if (!mysqli_query($koneksi, $query_payment)) {
-                throw new Exception("Error saat menyimpan pembayaran: " . mysqli_error($koneksi));
+            if (!$koneksi->query($query_payment)) {
+                throw new Exception("Error saat menyimpan pembayaran: ");
             }
             
             // Update status kamar menjadi booked
             $query_update_room = "UPDATE rooms SET status = 'booked' WHERE id = $room_id";
             
-            if (!mysqli_query($koneksi, $query_update_room)) {
-                throw new Exception("Error saat mengupdate status kamar: " . mysqli_error($koneksi));
+            if (!$koneksi->query($query_update_room)) {
+                throw new Exception("Error saat mengupdate status kamar: ");
             }
             
             // Commit transaksi
-            mysqli_commit($koneksi);
+            $koneksi->commit();
             
             $success = "Pemesanan berhasil dibuat dengan kode booking: $booking_code. Admin akan memverifikasi pembayaran Anda.";
             
@@ -100,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
         } catch (Exception $e) {
             // Rollback transaksi jika terjadi error
-            mysqli_rollback($koneksi);
+            $koneksi->rollback();
             $error = $e->getMessage();
         }
     }
@@ -196,16 +195,6 @@ $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
                                     <label for="check_out" class="form-label">Tanggal Check-out</label>
                                     <input type="date" class="form-control" id="check_out" name="check_out" min="<?= date('Y-m-d', strtotime('+1 day')) ?>" required>
                                 </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="payment_method" class="form-label">Metode Pembayaran</label>
-                                <select class="form-select" id="payment_method" name="payment_method" required>
-                                    <option value="" selected disabled>Pilih metode pembayaran</option>
-                                    <option value="transfer">Transfer Bank</option>
-                                    <option value="credit_card">Kartu Kredit</option>
-                                    <option value="ewallet">E-Wallet</option>
-                                </select>
                             </div>
                             
                             <div class="alert alert-info">

@@ -8,9 +8,9 @@ $success = '';
 
 // Cek apakah form register sudah disubmit
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = mysqli_real_escape_string($koneksi, $_POST['name']);
-    $email = mysqli_real_escape_string($koneksi, $_POST['email']);
-    $phone = mysqli_real_escape_string($koneksi, $_POST['phone']);
+    $name = $koneksi->real_escape_string($_POST['name']);
+    $email = $koneksi->real_escape_string($_POST['email']);
+    $phone = $koneksi->real_escape_string($_POST['phone']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     
@@ -24,9 +24,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         // Cek apakah email sudah terdaftar
         $check_query = "SELECT * FROM users WHERE email = '$email'";
-        $check_result = mysqli_query($koneksi, $check_query);
+        $check_result = $koneksi->query($check_query);
         
-        if (mysqli_num_rows($check_result) > 0) {
+        if ($check_result->num_rows > 0) {
             $error = "Email sudah terdaftar! Silakan gunakan email lain.";
         } else {
             // Hash password
@@ -35,7 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Insert user baru ke database
             $insert_query = "INSERT INTO users (name, email, phone, password, role) VALUES ('$name', '$email', '$phone', '$hashed_password', 'user')";
             
-            if (mysqli_query($koneksi, $insert_query)) {
+            if ($koneksi->query($insert_query)) {
                 $success = "Registrasi berhasil! Silakan login.";
                 // Redirect ke halaman login setelah 3 detik
                 header("refresh:2;url=login.php");

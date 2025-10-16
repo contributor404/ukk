@@ -11,7 +11,7 @@ include 'bootstrap.php'
     <!-- Custom CSS -->
     <style>
         .page-header {
-            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://source.unsplash.com/random/1600x400/?hotel-room');
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg');
             background-size: cover;
             background-position: center;
             color: white;
@@ -122,7 +122,7 @@ include 'bootstrap.php'
             
             // Filter berdasarkan pencarian
             if (isset($_GET['search']) && !empty($_GET['search'])) {
-                $search = mysqli_real_escape_string($koneksi, $_GET['search']);
+                $search = $koneksi->real_escape_string($_GET['search']);
                 $conditions[] = "(rt.name LIKE '%$search%' OR rt.description LIKE '%$search%' OR rt.facilities LIKE '%$search%')";
             }
             
@@ -134,12 +134,16 @@ include 'bootstrap.php'
             // Tambahkan pengurutan
             $query .= " ORDER BY rt.price_per_night ASC";
             
-            $result = mysqli_query($koneksi, $query);
+            $result = $koneksi->query($query);
+
+            ?>
+            <p class="text-danger" style="font-weight: bold;">Fatal error: <?= var_dump($result->fetch_all()); ?></p>
+            <?php
             
             // Cek apakah ada data
-            if (mysqli_num_rows($result) > 0) {
+            if ($result->num_rows > 0) {
                 // Tampilkan data tipe kamar
-                while ($row = mysqli_fetch_assoc($result)) {
+                while ($row = $result->fetch_assoc()) {
                     // Konversi fasilitas dari format teks ke array
                     $facilities = explode(",", $row['facilities']);
                     $facilities_icons = '';
@@ -232,7 +236,7 @@ include 'bootstrap.php'
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2030 Hotel Booking. All rights reserved.</p>
             </div>
         </div>
     </footer>

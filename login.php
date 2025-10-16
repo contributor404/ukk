@@ -14,15 +14,15 @@ if (isset($_GET['logout'])) {
 
 // Cek apakah form login sudah disubmit
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = mysqli_real_escape_string($koneksi, $_POST['email']);
+    $email = $koneksi->real_escape_string($_POST['email']);
     $password = $_POST['password'];
     
     // Query untuk mencari user berdasarkan email
     $query = "SELECT * FROM users WHERE email = '$email'";
-    $result = mysqli_query($koneksi, $query);
+    $result = $koneksi->query($query);
     
-    if (mysqli_num_rows($result) == 1) {
-        $user = mysqli_fetch_assoc($result);
+    if ($result->num_rows == 1) {
+        $user = $result->fetch_assoc();
         
         // Verifikasi password
         if (password_verify($password, $user['password'])) {

@@ -15,26 +15,25 @@ if (!isset($_GET['kode']) || empty($_GET['kode'])) {
     exit;
 }
 
-$booking_code = mysqli_real_escape_string($koneksi, $_GET['kode']);
+$booking_code = $koneksi->real_escape_string($_GET["kode"]);
 $user_id = $_SESSION['user_id'];
 
 // Query untuk mengambil data booking
-$query = "SELECT b.*, r.room_number, r.floor, rt.name as room_type, rt.price_per_night, rt.capacity, 
-                 p.payment_method, p.status as payment_status 
+$query = "SELECT b.*, r.room_number, r.floor, rt.name as room_type, rt.price_per_night, rt.capacity, p.status as payment_status 
           FROM bookings b 
           JOIN rooms r ON b.room_id = r.id 
           JOIN room_types rt ON r.room_type_id = rt.id 
           JOIN payments p ON p.booking_id = b.id 
           WHERE b.booking_code = '$booking_code' AND b.user_id = $user_id";
-$result = mysqli_query($koneksi, $query);
+$result = $koneksi->query($query);
 
 // Cek apakah booking ditemukan
-if (mysqli_num_rows($result) == 0) {
+if ($result->num_rows == 0) {
     header('Location: riwayat.php');
     exit;
 }
 
-$booking = mysqli_fetch_assoc($result);
+$booking = $result->fetch_assoc();
 
 // Format harga dan tanggal
 $formatted_price = number_format($booking['total_price'], 0, ',', '.');
@@ -60,16 +59,6 @@ $status_labels = [
 
 $booking_status = isset($status_labels[$booking['status']]) ? $status_labels[$booking['status']] : $booking['status'];
 $payment_status = isset($status_labels[$booking['payment_status']]) ? $status_labels[$booking['payment_status']] : $booking['payment_status'];
-
-// Format metode pembayaran dalam bahasa Indonesia
-$payment_methods = [
-    'cash' => 'Tunai',
-    'credit_card' => 'Kartu Kredit',
-    'transfer' => 'Transfer Bank',
-    'ewallet' => 'E-Wallet'
-];
-
-$payment_method = isset($payment_methods[$booking['payment_method']]) ? $payment_methods[$booking['payment_method']] : $booking['payment_method'];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -200,7 +189,6 @@ $payment_method = isset($payment_methods[$booking['payment_method']]) ? $payment
                                     <p><strong>Durasi:</strong> <?= $nights ?> malam</p>
                                 </div>
                                 <div class="col-md-6">
-                                    <p><strong>Metode Pembayaran:</strong> <?= $payment_method ?></p>
                                     <p><strong>Status Pembayaran:</strong> 
                                         <span class="status-badge <?= $booking['payment_status'] == 'paid' ? 'status-confirmed' : ($booking['payment_status'] == 'failed' ? 'status-cancelled' : 'status-pending') ?>">
                                             <?= $payment_status ?>

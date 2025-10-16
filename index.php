@@ -61,12 +61,12 @@ include 'bootstrap.php';
             <?php
             // Query untuk mengambil data tipe kamar
             $query = "SELECT rt.*, r.image FROM room_types rt LEFT JOIN rooms r ON rt.id = r.room_type_id ORDER BY price_per_night LIMIT 6";
-            $result = mysqli_query($koneksi, $query);
+            $result = $koneksi->query($query);
             
             // Cek apakah ada data
-            if (mysqli_num_rows($result) > 0) {
+            if ($result->num_rows > 0) {
                 // Tampilkan data tipe kamar
-                while ($row = mysqli_fetch_assoc($result)) {
+                while ($row = $result->fetch_assoc()) {
                     // Konversi fasilitas dari format teks ke array
                     $facilities = explode(",", $row['facilities']);
                     $facilities_icons = '';
