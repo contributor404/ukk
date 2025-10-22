@@ -60,7 +60,7 @@ include 'bootstrap.php';
         <div class="row" id="room-list">
             <?php
             // Query untuk mengambil data tipe kamar
-            $query = "SELECT rt.*, r.image FROM room_types rt LEFT JOIN rooms r ON rt.id = r.room_type_id ORDER BY price_per_night LIMIT 6";
+            $query = "SELECT rt.*, (SELECT r.image FROM rooms r WHERE r.room_type_id = rt.id LIMIT 1) as image, (SELECT COUNT(*) FROM rooms r WHERE r.room_type_id = rt.id AND r.status = 'available') as available_rooms FROM room_types rt ORDER BY price_per_night LIMIT 6";
             $result = $koneksi->query($query);
             
             // Cek apakah ada data
@@ -94,12 +94,25 @@ include 'bootstrap.php';
                     
                     // Format harga
                     $formatted_price = number_format($row['price_per_night'], 0, ',', '.');
+
+                    // Tentukan badge ketersediaan
+                    $availability_badge = '';
+                    if ($row['available_rooms'] > 0) {
+                        $availability_badge = "<span class='badge bg-success'>Tersedia {$row['available_rooms']} kamar</span>";
+                    } else {
+                        $availability_badge = "<span class='badge bg-danger'>Tidak tersedia</span>";
+                    }
+
+                    $row["image"] = isset($row["image"]) ? $row["image"] : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
                     
                     echo "<div class='col-md-4 mb-4'>";
                     echo "<div class='card room-card shadow'>";
                     echo "<img src='{$row['image']}' class='card-img-top room-img' alt='{$row['name']}'>";
                     echo "<div class='card-body'>";
-                    echo "<h5 class='card-title'>{$row['name']}</h5>";
+                    echo "<div class='d-flex justify-content-between align-items-start mb-2'>";
+                    echo "<h5 class='card-title mb-0'>{$row['name']}</h5>";
+                    echo "{$availability_badge}";
+                    echo "</div>";
                     echo "<p class='card-text'>{$row['description']}</p>";
                     echo "<div class='d-flex justify-content-between align-items-center mb-3'>";
                     echo "<span class='badge bg-primary rounded-pill'>Kapasitas: {$row['capacity']} orang</span>";

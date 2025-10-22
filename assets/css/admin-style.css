@@ -1,0 +1,139 @@
+:root {
+  --main-bg-color: #f8f9fa;
+  --main-text-color: #000;
+  --primary-color: #0d6efd;
+  --secondary-color: #dee2e6;
+}
+
+#wrapper {
+  overflow-x: hidden;
+  background-color: var(--main-bg-color);
+}
+
+#sidebar-wrapper {
+  min-height: 100vh;
+  margin-left: -15rem;
+  transition: margin 0.25s ease-out;
+}
+
+#sidebar-wrapper .sidebar-heading {
+  padding: 0.875rem 1.25rem;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+#sidebar-wrapper .list-group {
+  width: 15rem;
+}
+
+#page-content-wrapper {
+  min-width: 100vw;
+}
+
+#wrapper.toggled #sidebar-wrapper {
+  margin-left: 0;
+}
+
+#menu-toggle {
+  cursor: pointer;
+}
+
+.list-group-item {
+  border: none;
+  padding: 20px 30px;
+  color: #fff;
+}
+
+.list-group-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #fff;
+}
+
+.primary-text {
+  color: var(--primary-color);
+}
+
+.secondary-bg {
+  background-color: var(--secondary-color);
+}
+
+body {
+  background-color: #f8f9fb;
+  font-family: 'Poppins', sans-serif;
+}
+
+.navbar {
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.card {
+  border: none;
+  border-radius: 1rem;
+}
+
+.card-stat {
+  transition: all 0.2s ease-in-out;
+}
+
+.card-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.icon-box {
+  background: #e9f2ff;
+  color: #0d6efd;
+  border-radius: 50%;
+  padding: 12px 15px;
+}
+
+.sidebar {
+  width: 250px;
+  background: #0d6efd;
+  color: white;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 20px;
+}
+
+.sidebar h4 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sidebar a {
+  color: #e8e8e8;
+  text-decoration: none;
+  display: block;
+  padding: 10px 0;
+  border-radius: 6px;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.content {
+  margin-left: 260px;
+  padding: 30px;
+}
+
+@media (min-width: 768px) {
+  #sidebar-wrapper {
+    margin-left: 0;
+  }
+
+  #page-content-wrapper {
+    min-width: 0;
+    width: 100%;
+  }
+
+  #wrapper.toggled #sidebar-wrapper {
+    margin-left: -15rem;
+  }
+}

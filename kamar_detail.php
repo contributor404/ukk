@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 include 'koneksi.php';
 include 'bootstrap.php';
 
@@ -9,16 +11,33 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 }
 
 $id = $_GET['id'];
+$user_id = $_SESSION["user_id"];
 
 // Query untuk mengambil data tipe kamar berdasarkan id
-$query = "SELECT rt.*, 
-        (SELECT r.image FROM rooms r WHERE r.room_type_id = rt.id LIMIT 1) as room_image,
-        (SELECT COUNT(*) FROM rooms r WHERE r.room_type_id = rt.id AND r.status = 'available') as available_rooms
-        FROM room_types rt 
-        WHERE rt.id = $id";
+$query = "SELECT
+    rt.*,
+    (
+        SELECT r.image
+        FROM rooms r
+        WHERE r.room_type_id = rt.id
+        LIMIT 1
+    ) AS room_image,
+    (
+        SELECT COUNT(*)
+        FROM rooms r
+        WHERE r.room_type_id = rt.id AND r.status = 'available'
+    ) AS available_rooms
+FROM
+    room_types rt
+WHERE
+    rt.id = $id
+    AND NOT EXISTS (
+        SELECT *
+        FROM bookings b
+          WHERE b.user_id = $user_id
+    );
+";
 $result = $koneksi->query($query);
-
-var_dump($result->num_rows);
 
 // Cek apakah data ditemukan
 if ($result->num_rows == 0) {

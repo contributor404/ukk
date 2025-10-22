@@ -19,19 +19,25 @@ $room_id = $_GET['id'];
 $user_id = $_SESSION['user_id'];
 
 // Query untuk mengambil data kamar
-$query = "SELECT r.*, rt.name as room_type, rt.price_per_night, rt.capacity 
-          FROM rooms r 
-          JOIN room_types rt ON r.room_type_id = rt.id 
-          WHERE r.id = $room_id AND r.status = 'available'";
+// $query = "SELECT r.*, rt.name as room_type, rt.price_per_night, rt.capacity 
+//           FROM rooms r 
+//           JOIN room_types rt ON r.room_type_id = rt.id 
+//           WHERE r.id = $room_id";
+$query = "SELECT rt.*, rt.name as room_type, r.id as r_id, r.* FROM room_types rt RIGHT JOIN rooms r ON rt.id = r.room_type_id AND r.status = 'available' WHERE rt.id = $room_id";
 $result = $koneksi->query($query);
 
 // Cek apakah kamar ditemukan dan tersedia
 if ($result->num_rows == 0) {
+    // var_dump($result->fetch_all());
     header('Location: kamar_semua.php');
     exit;
 }
 
 $room = $result->fetch_assoc();
+// var_dump($room);
+// exit;
+
+$room_id = $room["id"];
 
 // Proses form pemesanan
 $success = '';

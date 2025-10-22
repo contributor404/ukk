@@ -135,10 +135,6 @@ include 'bootstrap.php'
             $query .= " ORDER BY rt.price_per_night ASC";
             
             $result = $koneksi->query($query);
-
-            ?>
-            <p class="text-danger" style="font-weight: bold;">Fatal error: <?= var_dump($result->fetch_all()); ?></p>
-            <?php
             
             // Cek apakah ada data
             if ($result->num_rows > 0) {
@@ -183,6 +179,8 @@ include 'bootstrap.php'
                     } else {
                         $availability_badge = "<span class='badge bg-danger'>Tidak tersedia</span>";
                     }
+
+                    $row["room_image"] = isset($row["room_image"]) ? $row["room_image"] : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
                     
                     echo "<div class='col-md-6 col-lg-4 mb-4'>";
                     echo "<div class='card room-card shadow h-100'>";
