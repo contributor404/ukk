@@ -35,7 +35,7 @@ if (isset($_POST['update_status'])) {
         if (in_array($new_status, ['cancelled', 'checked_out', 'failed'])) {
             // Perlu cek apakah kamar ini tidak sedang dipesan oleh booking lain yang Confirmed/Checked_in
             // Untuk penyederhanaan, kita langsung set available, tapi dalam sistem nyata perlu pengecekan lebih lanjut.
-             $room_status = 'available';
+            $room_status = 'available';
         }
 
         $stmt_room = $koneksi->prepare("UPDATE rooms SET status = ? WHERE id = ?");
@@ -44,8 +44,10 @@ if (isset($_POST['update_status'])) {
             throw new Exception("Gagal update status kamar.");
         }
         $stmt_room->close();
-        
+
         // 3. Update Status Pembayaran (Sederhana)
+        // BAGIAN INI DIHAPUS karena tabel 'payments' tidak ada di database.
+        /*
         if ($new_status == 'paid' || $new_status == 'confirmed') {
              $stmt_payment = $koneksi->prepare("UPDATE payments SET status = 'paid', payment_date = NOW() WHERE booking_id = ?");
              $stmt_payment->bind_param("i", $booking_id);
@@ -57,6 +59,7 @@ if (isset($_POST['update_status'])) {
              $stmt_payment->execute();
              $stmt_payment->close();
         }
+        */
 
 
         $koneksi->commit();
@@ -65,31 +68,30 @@ if (isset($_POST['update_status'])) {
         $koneksi->rollback();
         $message = "<div class='alert alert-danger'>Kesalahan saat mengubah status: " . $e->getMessage() . "</div>";
     }
-
 }
 
 // 4. Ambil Daftar Pesanan (Tampil)
+// QUERY TELAH DIUBAH: Menghapus JOIN ke tabel 'payments' dan kolom 'p.status'
 $query = "
     SELECT 
         b.id, b.booking_code, b.check_in, b.check_out, b.total_price, b.status, b.created_at,
         u.name as user_name, u.email as user_email,
         r.room_number,
         rt.name as room_type_name,
-        p.status as payment_status,
         r.id as room_id
     FROM bookings b
     JOIN users u ON b.user_id = u.id
     JOIN rooms r ON b.room_id = r.id
     JOIN room_types rt ON r.room_type_id = rt.id
-    LEFT JOIN payments p ON b.id = p.booking_id
     ORDER BY b.created_at DESC
 ";
-$bookings_result = $koneksi->query($query);
+$bookings_result = $koneksi->query($query); // BARIS INI (sekitar baris 87) SEKARANG TIDAK MEMANGGIL TABEL 'payments'
 $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
 
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -99,13 +101,35 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
     <link rel="stylesheet" href="../assets/css/admin-style.css">
     <style>
         /* Gaya tambahan untuk status */
-        .status-pending { background-color: #ffc107; color: #000; }
-        .status-confirmed, .status-paid { background-color: #0d6efd; color: #fff; }
-        .status-checked_in { background-color: #198754; color: #fff; }
-        .status-checked_out { background-color: #6c757d; color: #fff; }
-        .status-cancelled, .status-failed { background-color: #dc3545; color: #fff; }
+        .status-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .status-confirmed,
+        .status-paid {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        .status-checked_in {
+            background-color: #198754;
+            color: #fff;
+        }
+
+        .status-checked_out {
+            background-color: #6c757d;
+            color: #fff;
+        }
+
+        .status-cancelled,
+        .status-failed {
+            background-color: #dc3545;
+            color: #fff;
+        }
     </style>
 </head>
+
 <body>
     <div class="d-flex" id="wrapper">
         <?php include 'sidebar.php'; ?>
@@ -153,11 +177,11 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                                             </td>
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-warning text-dark action-btn"
-                                                        data-bs-toggle="modal" data-bs-target="#actionModal"
-                                                        data-id="<?= $booking['id'] ?>"
-                                                        data-code="<?= htmlspecialchars($booking['booking_code']) ?>"
-                                                        data-current-status="<?= htmlspecialchars($booking['status']) ?>"
-                                                        data-room-id="<?= $booking['room_id'] ?>">
+                                                    data-bs-toggle="modal" data-bs-target="#actionModal"
+                                                    data-id="<?= $booking['id'] ?>"
+                                                    data-code="<?= htmlspecialchars($booking['booking_code']) ?>"
+                                                    data-current-status="<?= htmlspecialchars($booking['status']) ?>"
+                                                    data-room-id="<?= $booking['room_id'] ?>">
                                                     <i class="fas fa-cogs"></i> Status
                                                 </button>
                                             </td>
@@ -214,7 +238,7 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
         var el = document.getElementById("wrapper");
         var toggleButton = document.getElementById("menu-toggle");
 
-        toggleButton.onclick = function () {
+        toggleButton.onclick = function() {
             el.classList.toggle("toggled");
         };
 
@@ -229,14 +253,15 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                 document.getElementById('modal_booking_id').value = id;
                 document.getElementById('modal_room_id').value = roomId;
                 document.getElementById('modal_booking_code').textContent = code;
-                
+
                 const statusBadge = document.getElementById('modal_current_status_badge');
                 statusBadge.textContent = status.toUpperCase();
                 statusBadge.className = 'badge status-' + status.replace('_', '-');
-                
+
                 document.getElementById('new_status').value = status; // Set default ke status saat ini
             });
         });
     </script>
 </body>
+
 </html>

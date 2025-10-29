@@ -24,7 +24,6 @@ $query = "SELECT
           FROM bookings b
           JOIN rooms r ON b.room_id = r.id
           JOIN room_types rt ON r.room_type_id = rt.id
-          JOIN payments p ON b.id = p.booking_id
           WHERE b.user_id = $user_id
           ORDER BY b.id DESC";
 

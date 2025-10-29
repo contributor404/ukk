@@ -6,7 +6,17 @@ include 'bootstrap.php';
 
 // Cek apakah ada parameter id
 if (!isset($_GET['id']) || empty($_GET['id'])) {
+    ?>
+    <script>
+        alert("Anda sudah pernah pesan kamar ini.")
+    </script>
+    <?php
     header('Location: index.php');
+    exit;
+}
+
+if (!isset($_SESSION["user_id"])) {
+    header('Location: login.php');
     exit;
 }
 
@@ -30,22 +40,47 @@ $query = "SELECT
 FROM
     room_types rt
 WHERE
-    rt.id = $id
-    AND NOT EXISTS (
-        SELECT *
-        FROM bookings b
-          WHERE b.user_id = $user_id
-    );
+    rt.id = $id;
 ";
 $result = $koneksi->query($query);
 
 // Cek apakah data ditemukan
 if ($result->num_rows == 0) {
+    ?>
+    <script>
+        alert("Anda sudah pernah pesan kamar ini.")
+    </script>
+    <?php
     header('Location: index.php');
     exit;
 }
 
 $room = $result->fetch_assoc();
+
+if ($room["available_rooms"] == 0) {
+    ?>
+    <script>
+        alert("Anda sudah pernah pesan kamar ini.")
+    </script>
+    <?php
+    header('Location: index.php');
+    exit;
+}
+
+$qq = "SELECT r.*, r.id AS unix_room_id, b.* FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = 1";
+$res = $koneksi->query($qq);
+
+$ress = $res->fetch_assoc();
+
+if (isset($ress) && $ress["room_type_id"] == $id) {
+    ?>
+    <script>
+        alert("Anda sudah pernah pesan kamar ini.")
+    </script>
+    <?php
+    header('Location: index.php');
+    exit;
+}
 
 // Format harga
 $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
