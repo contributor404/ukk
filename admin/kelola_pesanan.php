@@ -45,25 +45,8 @@ if (isset($_POST['update_status'])) {
         }
         $stmt_room->close();
 
-        // 3. Update Status Pembayaran (Sederhana)
-        // BAGIAN INI DIHAPUS karena tabel 'payments' tidak ada di database.
-        /*
-        if ($new_status == 'paid' || $new_status == 'confirmed') {
-             $stmt_payment = $koneksi->prepare("UPDATE payments SET status = 'paid', payment_date = NOW() WHERE booking_id = ?");
-             $stmt_payment->bind_param("i", $booking_id);
-             $stmt_payment->execute();
-             $stmt_payment->close();
-        } else if (in_array($new_status, ['cancelled', 'failed'])) {
-             $stmt_payment = $koneksi->prepare("UPDATE payments SET status = 'failed' WHERE booking_id = ?");
-             $stmt_payment->bind_param("i", $booking_id);
-             $stmt_payment->execute();
-             $stmt_payment->close();
-        }
-        */
-
-
         $koneksi->commit();
-        $message = "<div class='alert alert-success'>Status pesanan **BK" . $booking_id . "** berhasil diubah menjadi **" . $new_status . "**!</div>";
+        $message = "<div class='alert alert-success'>Status pesanan BK" . $booking_id . " berhasil diubah menjadi " . $new_status . "!</div>";
     } catch (Exception $e) {
         $koneksi->rollback();
         $message = "<div class='alert alert-danger'>Kesalahan saat mengubah status: " . $e->getMessage() . "</div>";
@@ -112,12 +95,12 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
             color: #fff;
         }
 
-        .status-checked_in {
+        .status-checked-in {
             background-color: #198754;
             color: #fff;
         }
 
-        .status-checked_out {
+        .status-checked-out {
             background-color: #6c757d;
             color: #fff;
         }
@@ -219,7 +202,6 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                                 <option value="checked_in">checked_in (Sudah Check-in)</option>
                                 <option value="checked_out">checked_out (Sudah Check-out)</option>
                                 <option value="cancelled">cancelled (Dibatalkan)</option>
-                                <option value="failed">failed (Gagal)</option>
                             </select>
                         </div>
                     </div>

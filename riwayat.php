@@ -1,47 +1,9 @@
 <?php
-session_start();
-include 'koneksi.php';
 include 'bootstrap.php';
-
-// Cek apakah user sudah login
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$user_id = $_SESSION['user_id'];
-
-// Query untuk mengambil data riwayat booking user
-$query = "SELECT 
-            b.id,
-            b.booking_code,
-            b.check_in,
-            b.check_out,
-            b.total_price,
-            b.status as booking_status,
-            rt.name as room_type_name,
-            (SELECT r.image FROM rooms r WHERE r.room_type_id = rt.id LIMIT 1) as room_image
-          FROM bookings b
-          JOIN rooms r ON b.room_id = r.id
-          JOIN room_types rt ON r.room_type_id = rt.id
-          WHERE b.user_id = $user_id
-          ORDER BY b.id DESC";
-
-$result = $koneksi->query($query);
-
-// Status booking dan pembayaran dalam bahasa Indonesia
-$status_labels = [
-    'pending' => 'Menunggu Konfirmasi',
-    'confirmed' => 'Dikonfirmasi',
-    'cancelled' => 'Dibatalkan',
-    'checked_in' => 'Check-in',
-    'checked_out' => 'Check-out',
-    'paid' => 'Lunas',
-    'failed' => 'Gagal'
-];
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -61,7 +23,7 @@ $status_labels = [
             margin-bottom: 20px;
             background-color: #fff;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s;
         }
 
@@ -84,7 +46,7 @@ $status_labels = [
             justify-content: space-between;
             width: 100%;
         }
-        
+
         .status-badge {
             font-size: 0.9rem;
             padding: 5px 10px;
@@ -92,16 +54,37 @@ $status_labels = [
             color: white;
         }
 
-        .status-pending { background-color: #ffc107; color: #000 !important; }
-        .status-confirmed { background-color: #198754; }
-        .status-paid { background-color: #0d6efd; }
-        .status-cancelled { background-color: #dc3545; }
-        .status-checked_in { background-color: #0dcaf0; }
-        .status-checked_out { background-color: #6c757d; }
-        .status-failed { background-color: #dc3545; }
+        .status-pending {
+            background-color: #ffc107;
+            color: #000 !important;
+        }
 
+        .status-confirmed {
+            background-color: #198754;
+        }
+
+        .status-paid {
+            background-color: #0d6efd;
+        }
+
+        .status-cancelled {
+            background-color: #dc3545;
+        }
+
+        .status-checked_in {
+            background-color: #0dcaf0;
+        }
+
+        .status-checked_out {
+            background-color: #6c757d;
+        }
+
+        .status-failed {
+            background-color: #dc3545;
+        }
     </style>
 </head>
+
 <body>
     <header class="page-header text-center">
         <div class="container">
@@ -110,38 +93,8 @@ $status_labels = [
         </div>
     </header>
 
-    <div class="container mb-5">
-        <?php if ($result->num_rows > 0): ?>
-            <?php while($row = $result->fetch_assoc()): 
-                $booking_status = isset($status_labels[$row['booking_status']]) ? $status_labels[$row['booking_status']] : $row['booking_status'];
-            ?>
-                <div class="history-card">
-                    <img src="<?= !empty($row['room_image']) ? $row['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>" alt="<?= htmlspecialchars($row['room_type_name']) ?>">
-                    <div class="card-body">
-                        <div>
-                            <div class="d-flex justify-content-between">
-                                <h5 class="card-title"><?= htmlspecialchars($row['room_type_name']) ?></h5>
-                                <span class="fw-bold text-primary">Rp <?= number_format($row['total_price'], 0, ',', '.') ?></span>
-                            </div>
-                            <p class="card-text mb-1"><strong>Kode Booking:</strong> <?= htmlspecialchars($row['booking_code']) ?></p>
-                            <p class="card-text">
-                                <strong>Check-in:</strong> <?= date('d M Y', strtotime($row['check_in'])) ?> | 
-                                <strong>Check-out:</strong> <?= date('d M Y', strtotime($row['check_out'])) ?>
-                            </p>
-                            <div class="d-flex gap-2">
-                                <span class="status-badge status-<?= $row['booking_status'] ?>"><?= $booking_status ?></span>
-                            </div>
-                        </div>
-                        <a href="kamar_kode.php?kode=<?= $row['booking_code'] ?>" class="btn btn-outline-primary align-self-end mt-3">Lihat Detail</a>
-                    </div>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <div class="text-center">
-                <p>Anda belum memiliki riwayat pemesanan.</p>
-                <a href="kamar_semua.php" class="btn btn-primary">Pesan Kamar Sekarang</a>
-            </div>
-        <?php endif; ?>
+    <div class="container mb-5" id="riwayat-list">
+        <!-- Data riwayat akan dimuat oleh jQuery -->
     </div>
 
     <footer class="bg-dark text-white py-5">
@@ -175,5 +128,103 @@ $status_labels = [
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./assets/js/jquery-3.7.1.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $.ajax({
+                url: "api/riwayat.php",
+                method: "GET",
+                dataType: "json",
+                success: function(response) {
+                    const container = $("#riwayat-list");
+                    container.empty();
+
+                    if (response.status === "success" && response.data.length > 0) {
+                        response.data.forEach(function(row) {
+                            // Ganti label status
+                            let statusText = row.booking_status;
+                            const statusMap = {
+                                "pending": "Menunggu Konfirmasi",
+                                "confirmed": "Dikonfirmasi",
+                                "cancelled": "Dibatalkan",
+                                "checked_in": "Check-in",
+                                "checked_out": "Check-out",
+                                "paid": "Lunas",
+                                "failed": "Gagal"
+                            };
+                            if (statusMap[row.booking_status]) {
+                                statusText = statusMap[row.booking_status];
+                            }
+
+                            // Format tanggal dan harga
+                            const checkIn = new Date(row.check_in);
+                            const checkOut = new Date(row.check_out);
+                            const options = {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric"
+                            };
+                            const checkInFormatted = checkIn.toLocaleDateString("id-ID", options);
+                            const checkOutFormatted = checkOut.toLocaleDateString("id-ID", options);
+                            const totalFormatted = new Intl.NumberFormat("id-ID").format(row.total_price);
+
+                            // Gambar default
+                            const image = row.room_image && row.room_image.trim() !== "" ?
+                                row.room_image :
+                                "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
+
+                            // Bangun HTML card
+                            const card = `
+                        <div class="history-card mb-3">
+                            <img src="${image}" alt="${row.room_type_name}" />
+                            <div class="card-body">
+                                <div>
+                                    <div class="d-flex justify-content-between">
+                                        <h5 class="card-title">${row.room_type_name}</h5>
+                                        <span class="fw-bold text-primary">Rp ${totalFormatted}</span>
+                                    </div>
+                                    <p class="card-text mb-1"><strong>Kode Booking:</strong> ${row.booking_code}</p>
+                                    <p class="card-text">
+                                        <strong>Check-in:</strong> ${checkInFormatted} |
+                                        <strong>Check-out:</strong> ${checkOutFormatted}
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <span class="status-badge status-${row.booking_status}">
+                                            ${statusText}
+                                        </span>
+                                    </div>
+                                </div>
+                                <a href="kamar_kode.php?kode=${row.booking_code}"
+                                   class="btn btn-outline-primary align-self-end mt-3">
+                                   Lihat Detail
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                            container.append(card);
+                        });
+                    } else {
+                        container.html(`
+                    <div class="text-center">
+                        <p>Anda belum memiliki riwayat pemesanan.</p>
+                        <a href="kamar_semua.php" class="btn btn-primary">Pesan Kamar Sekarang</a>
+                    </div>
+                `);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Gagal memuat data:", error);
+                    $("#riwayat-list").html(`
+                <div class='text-center text-danger'>
+                    <p>Gagal memuat data riwayat pemesanan.</p>
+                </div>
+            `);
+                }
+            });
+        });
+    </script>
 </body>
+
 </html>

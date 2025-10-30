@@ -6,12 +6,10 @@ include 'bootstrap.php';
 
 // Cek apakah ada parameter id
 if (!isset($_GET['id']) || empty($_GET['id'])) {
-    ?>
-    <script>
-        alert("Anda sudah pernah pesan kamar ini.")
-    </script>
-    <?php
-    header('Location: index.php');
+    echo '<script>
+            alert("Anda sudah pernah pesan kamar ini.");
+            window.location.href = "index.php";
+          </script>';
     exit;
 }
 
@@ -46,39 +44,33 @@ $result = $koneksi->query($query);
 
 // Cek apakah data ditemukan
 if ($result->num_rows == 0) {
-    ?>
-    <script>
-        alert("Anda sudah pernah pesan kamar ini.")
-    </script>
-    <?php
-    header('Location: index.php');
+    echo '<script>
+            alert("Kamar tidak tersedia.");
+            window.location.href = "index.php";
+          </script>';
     exit;
 }
 
 $room = $result->fetch_assoc();
 
-if ($room["available_rooms"] == 0) {
-    ?>
-    <script>
-        alert("Anda sudah pernah pesan kamar ini.")
-    </script>
-    <?php
-    header('Location: index.php');
+if ($room["available_rooms"] == "0") {
+    echo '<script>
+            alert("Kamar tidak tersedia.");
+            window.location.href = "index.php";
+          </script>';
     exit;
 }
 
-$qq = "SELECT r.*, r.id AS unix_room_id, b.* FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = 1";
+$qq = "SELECT r.*, r.id AS unix_room_id, b.* FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = $user_id";
 $res = $koneksi->query($qq);
 
 $ress = $res->fetch_assoc();
 
 if (isset($ress) && $ress["room_type_id"] == $id) {
-    ?>
-    <script>
-        alert("Anda sudah pernah pesan kamar ini.")
-    </script>
-    <?php
-    header('Location: index.php');
+    echo '<script>
+            alert("Anda sudah pernah pesan kamar ini.");
+            window.location.href = "index.php";
+          </script>';
     exit;
 }
 
