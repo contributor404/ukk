@@ -61,12 +61,12 @@ if ($room["available_rooms"] == "0") {
     exit;
 }
 
-$qq = "SELECT r.*, r.id AS unix_room_id, b.* FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = $user_id";
+$qq = "SELECT r.*, r.id AS unix_room_id, b.*, b.status AS booking_status FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = $user_id";
 $res = $koneksi->query($qq);
 
 $ress = $res->fetch_assoc();
 
-if (isset($ress) && $ress["room_type_id"] == $id) {
+if (isset($ress) && $ress["room_type_id"] == $id && $ress["booking_status"] != "checked_out") {
     echo '<script>
             alert("Anda sudah pernah pesan kamar ini.");
             window.location.href = "index.php";

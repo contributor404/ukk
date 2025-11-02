@@ -116,6 +116,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Format harga
 $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
+
+$min_date = date('Y-m-d');
+
+$list_pesan = $koneksi->query("SELECT * FROM bookings b WHERE b.user_id = $user_id")->fetch_all(MYSQLI_ASSOC);
+if (isset($list_pesan) && !empty($list_pesan)) {
+    usort($list_pesan, function ($a, $b) {
+        return strtotime($b['check_out']) - strtotime($a['check_out']);
+    });
+    $min_date = date("Y-m-d", strtotime($list_pesan[0]["check_out"] . " +1 day"));
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -200,7 +210,7 @@ $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="check_in" class="form-label">Tanggal Check-in</label>
-                                    <input type="date" class="form-control" id="check_in" name="check_in" min="<?= date('Y-m-d') ?>" required>
+                                    <input type="date" class="form-control" id="check_in" name="check_in" min="<?= $min_date ?>" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="check_out" class="form-label">Tanggal Check-out</label>

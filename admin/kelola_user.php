@@ -41,7 +41,7 @@ if (isset($_POST['add_user'])) {
     $check->close();
 }
 
-// 2. Edit Pengguna
+// 2. Edit Pengguna (Blok ini sudah diperbaiki di respons sebelumnya, dipertahankan di sini)
 if (isset($_POST['edit_user'])) {
     $id = $_POST['user_id'];
     $name = $_POST['name'];
@@ -50,22 +50,32 @@ if (isset($_POST['edit_user'])) {
     $role = $_POST['role'];
     $password = $_POST['password'];
 
-    $sql = "UPDATE users SET name=?, email=?, phone=?, role=? ";
-    $params = "ssssi";
+    $sql = "UPDATE users SET name=?, email=?, phone=?, role=?";
+    $param_types = "ssss";
     $bind_params = [$name, $email, $phone, $role];
 
     if (!empty($password)) {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sql .= ", password=? ";
-        $params = "sssssi";
+        $sql .= ", password=?";
+        $param_types .= "s";
         $bind_params[] = $hashed_password;
     }
-    
-    $sql .= "WHERE id=?";
+
+    $sql .= " WHERE id=?";
+    $param_types .= "i";
     $bind_params[] = $id;
 
     $stmt = $koneksi->prepare($sql);
-    $stmt->bind_param($params, ...$bind_params);
+
+    // Perbaikan bind_param menggunakan referensi
+    $ref_params = array();
+    $ref_params[] = &$param_types;
+
+    foreach ($bind_params as $key => $value) {
+        $ref_params[] = &$bind_params[$key];
+    }
+
+    call_user_func_array(array($stmt, 'bind_param'), $ref_params);
 
     if ($stmt->execute()) {
         $message = "<div class='alert alert-success'>Pengguna berhasil diperbarui!</div>";
@@ -75,11 +85,11 @@ if (isset($_POST['edit_user'])) {
     $stmt->close();
 }
 
-// 3. Hapus Pengguna
+
+// 3. Hapus Pengguna (Dipertahankan)
 if (isset($_GET['delete_id'])) {
     $id = $_GET['delete_id'];
-    // Pencegahan agar Admin tidak menghapus dirinya sendiri (ID 2 berdasarkan hotel_booking.sql)
-    if ($id == 2) { 
+    if ($id == 2) {
         $message = "<div class='alert alert-danger'>Admin Utama tidak dapat dihapus!</div>";
     } else {
         $stmt = $koneksi->prepare("DELETE FROM users WHERE id = ?");
@@ -91,7 +101,6 @@ if (isset($_GET['delete_id'])) {
         }
         $stmt->close();
     }
-    // Refresh halaman untuk menghindari eksekusi ulang delete
     header("Location: kelola_user.php?message=" . urlencode(strip_tags($message)));
     exit;
 }
@@ -101,14 +110,100 @@ if (isset($_GET['message'])) {
     $message = "<div class='alert alert-info'>" . htmlspecialchars($_GET['message']) . "</div>";
 }
 
-// 4. Ambil Daftar Pengguna (Tampil)
-$query = "SELECT id, name, email, phone, role, created_at FROM users ORDER BY created_at DESC";
-$users_result = $koneksi->query($query);
-$users = $users_result->fetch_all(MYSQLI_ASSOC);
+// --- Logika Pencarian dan Pengurutan Pengguna (BARU) ---
+$search_term = $_GET['search'] ?? '';
+$sort_by = $_GET['sort'] ?? 'latest';
+$where_clauses = [];
+$order_clause = "";
+$params = [];
+$param_types = '';
+
+// a. Kondisi Pencarian (Filtering)
+if (!empty($search_term)) {
+    // Variabel referensi harus dibuat terpisah
+    $like_name = '%' . $search_term . '%';
+    $like_email = '%' . $search_term . '%';
+    $like_phone = '%' . $search_term . '%';
+    $like_role = '%' . $search_term . '%';
+
+    $where_clauses[] = "
+        (
+            name LIKE ? OR
+            email LIKE ? OR
+            phone LIKE ? OR
+            role LIKE ?
+        )
+    ";
+
+    // Tambahkan 4 variabel 'like' sebagai parameter
+    $params = array(
+        $like_name,
+        $like_email,
+        $like_phone,
+        $like_role
+    );
+    $param_types = 'ssss';
+}
+
+// b. Pengurutan (Sorting)
+switch ($sort_by) {
+    case 'name_asc':
+        $order_clause = "ORDER BY name ASC";
+        break;
+    case 'name_desc':
+        $order_clause = "ORDER BY name DESC";
+        break;
+    case 'role_asc':
+        $order_clause = "ORDER BY role ASC, name ASC";
+        break;
+    case 'role_desc':
+        $order_clause = "ORDER BY role DESC, name ASC";
+        break;
+    case 'latest': // Default
+    default:
+        $order_clause = "ORDER BY created_at DESC";
+        break;
+}
+
+// c. Kueri Gabungan
+$query = "SELECT id, name, email, phone, role, created_at FROM users";
+
+if (!empty($where_clauses)) {
+    $query .= " WHERE " . implode(' AND ', $where_clauses);
+}
+
+$query .= " " . $order_clause;
+
+// d. Eksekusi Kueri dengan Penanganan Referensi (MENGHINDARI WARNING bind_param)
+if (!empty($params)) {
+    $stmt = $koneksi->prepare($query);
+
+    // Siapkan array referensi untuk bind_param
+    $ref_params = array();
+    $ref_params[] = &$param_types;
+
+    foreach ($params as $key => $value) {
+        $ref_params[] = &$params[$key];
+    }
+
+    // Panggil bind_param menggunakan array referensi
+    call_user_func_array(array($stmt, 'bind_param'), $ref_params);
+
+    $stmt->execute();
+    $users_result = $stmt->get_result();
+    $users = $users_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} else {
+    // Jalankan kueri sederhana jika tidak ada pencarian
+    $users_result = $koneksi->query($query);
+    $users = $users_result->fetch_all(MYSQLI_ASSOC);
+}
+
 
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -117,6 +212,7 @@ $users = $users_result->fetch_all(MYSQLI_ASSOC);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
 </head>
+
 <body>
     <div class="d-flex" id="wrapper">
         <?php include 'sidebar.php'; ?>
@@ -133,10 +229,38 @@ $users = $users_result->fetch_all(MYSQLI_ASSOC);
                 <?= $message ?>
                 <div class="row my-4">
                     <h3 class="fs-4 mb-3">Daftar Pengguna dan Admin</h3>
-                    <div class="col text-end mb-3">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                            <i class="fas fa-plus me-2"></i>Tambah Pengguna/Admin
-                        </button>
+
+                    <div class="col-md-12 d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex flex-grow-1 me-3">
+                            <form method="GET" action="kelola_user.php" class="d-flex w-100">
+                                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort_by) ?>">
+                                <input type="text" name="search" class="form-control me-2" placeholder="Cari Nama, Email, Telepon, atau Role..." value="<?= htmlspecialchars($search_term) ?>">
+                                <button type="submit" class="btn btn-outline-primary">Cari</button>
+                                <?php if (!empty($search_term)): ?>
+                                    <a href="kelola_user.php?sort=<?= htmlspecialchars($sort_by) ?>" class="btn btn-outline-secondary ms-2">Reset</a>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+
+                        <div class="d-flex align-items-center">
+                            <form method="GET" action="kelola_user.php" class="me-3">
+                                <input type="hidden" name="search" value="<?= htmlspecialchars($search_term) ?>">
+                                <select name="sort" onchange="this.form.submit()" class="form-select form-select-sm">
+                                    <option value="latest" <?= $sort_by == 'latest' ? 'selected' : '' ?>>Urutkan: Terbaru</option>
+                                    <optgroup label="Nama">
+                                        <option value="name_asc" <?= $sort_by == 'name_asc' ? 'selected' : '' ?>>Nama (A-Z)</option>
+                                        <option value="name_desc" <?= $sort_by == 'name_desc' ? 'selected' : '' ?>>Nama (Z-A)</option>
+                                    </optgroup>
+                                    <optgroup label="Role">
+                                        <option value="role_asc" <?= $sort_by == 'role_asc' ? 'selected' : '' ?>>Role (Admin dulu)</option>
+                                        <option value="role_desc" <?= $sort_by == 'role_desc' ? 'selected' : '' ?>>Role (User dulu)</option>
+                                    </optgroup>
+                                </select>
+                            </form>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                <i class="fas fa-plus me-2"></i>Tambah Pengguna/Admin
+                            </button>
+                        </div>
                     </div>
                     <div class="col-md-12">
                         <div class="table-responsive">
@@ -153,36 +277,43 @@ $users = $users_result->fetch_all(MYSQLI_ASSOC);
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php $no = 1; foreach ($users as $user): ?>
-                                        <tr>
-                                            <th scope="row"><?= $no++ ?></th>
-                                            <td><?= htmlspecialchars($user['name']) ?></td>
-                                            <td><?= htmlspecialchars($user['email']) ?></td>
-                                            <td><?= htmlspecialchars($user['phone']) ?></td>
-                                            <td>
-                                                <span class="badge <?= $user['role'] == 'admin' ? 'bg-danger' : 'bg-success' ?>">
-                                                    <?= ucfirst(htmlspecialchars($user['role'])) ?>
-                                                </span>
-                                            </td>
-                                            <td><?= date('d M Y', strtotime($user['created_at'])) ?></td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-info text-white edit-btn"
+                                    <?php if (!empty($users)): ?>
+                                        <?php $no = 1;
+                                        foreach ($users as $user): ?>
+                                            <tr>
+                                                <th scope="row"><?= $no++ ?></th>
+                                                <td><?= htmlspecialchars($user['name']) ?></td>
+                                                <td><?= htmlspecialchars($user['email']) ?></td>
+                                                <td><?= htmlspecialchars($user['phone']) ?></td>
+                                                <td>
+                                                    <span class="badge <?= $user['role'] == 'admin' ? 'bg-danger' : 'bg-success' ?>">
+                                                        <?= ucfirst(htmlspecialchars($user['role'])) ?>
+                                                    </span>
+                                                </td>
+                                                <td><?= date('d M Y', strtotime($user['created_at'])) ?></td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-info text-white edit-btn"
                                                         data-bs-toggle="modal" data-bs-target="#editUserModal"
                                                         data-id="<?= $user['id'] ?>"
                                                         data-name="<?= htmlspecialchars($user['name']) ?>"
                                                         data-email="<?= htmlspecialchars($user['email']) ?>"
                                                         data-phone="<?= htmlspecialchars($user['phone']) ?>"
                                                         data-role="<?= htmlspecialchars($user['role']) ?>">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <?php if ($user['id'] != $_SESSION['user_id']): // Admin tidak bisa menghapus dirinya sendiri ?>
-                                                <a href="kelola_user.php?delete_id=<?= $user['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus pengguna ini?');">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                                <?php endif; ?>
-                                            </td>
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                                        <a href="kelola_user.php?delete_id=<?= $user['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus pengguna ini?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="7" class="text-center">Tidak ada pengguna yang ditemukan.</td>
                                         </tr>
-                                    <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -283,7 +414,7 @@ $users = $users_result->fetch_all(MYSQLI_ASSOC);
         var el = document.getElementById("wrapper");
         var toggleButton = document.getElementById("menu-toggle");
 
-        toggleButton.onclick = function () {
+        toggleButton.onclick = function() {
             el.classList.toggle("toggled");
         };
 
@@ -300,4 +431,5 @@ $users = $users_result->fetch_all(MYSQLI_ASSOC);
         });
     </script>
 </body>
+
 </html>

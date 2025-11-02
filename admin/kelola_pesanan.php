@@ -9,8 +9,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 }
 
 $message = '';
+$search_term = ''; // Variabel untuk menyimpan kata kunci pencarian
+$where_clauses = []; // Array untuk menyimpan kondisi WHERE
 
-// --- Logika Update Status Pesanan ---
+// --- Logika Update Status Pesanan (Tidak Berubah) ---
 if (isset($_POST['update_status'])) {
     $booking_id = $_POST['booking_id'];
     $new_status = $_POST['new_status'];
@@ -28,7 +30,7 @@ if (isset($_POST['update_status'])) {
 
         // 2. Update Status Kamar
         $room_status = 'available'; // Default
-        if (in_array($new_status, ['confirmed', 'checked_in'])) {
+        if (in_array($new_status, ['confirmed', 'checked_in', 'pending', 'paid'])) {
             $room_status = 'booked';
         }
         // Jika status dibatalkan atau checked_out, status kamar kembali ke available
@@ -46,15 +48,37 @@ if (isset($_POST['update_status'])) {
         $stmt_room->close();
 
         $koneksi->commit();
-        $message = "<div class='alert alert-success'>Status pesanan BK" . $booking_id . " berhasil diubah menjadi " . $new_status . "!</div>";
+        // Menggunakan booking_code daripada id untuk pesan
+        $message = "<div class='alert alert-success'>Status pesanan " . $_POST['booking_code_display'] . " berhasil diubah menjadi " . $new_status . "!</div>";
     } catch (Exception $e) {
         $koneksi->rollback();
         $message = "<div class='alert alert-danger'>Kesalahan saat mengubah status: " . $e->getMessage() . "</div>";
     }
 }
 
-// 4. Ambil Daftar Pesanan (Tampil)
-// QUERY TELAH DIUBAH: Menghapus JOIN ke tabel 'payments' dan kolom 'p.status'
+// --- Logika Pencarian ---
+if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
+    $search_term = trim($_GET['search']);
+    $like = '%' . $search_term . '%';
+
+    // Tambahkan kondisi WHERE untuk pencarian
+    // Mencari berdasarkan: Kode Booking, Nama Pelanggan, Email Pelanggan, Nomor Kamar, Tipe Kamar, Status
+    $where_clauses[] = "
+        (
+            b.booking_code LIKE ? OR
+            u.name LIKE ? OR
+            u.email LIKE ? OR
+            r.room_number LIKE ? OR
+            rt.name LIKE ? OR
+            b.status LIKE ?
+        )
+    ";
+    // Ulangi parameter LIKE sesuai jumlah klausa yang menggunakan LIKE
+    $param_types = str_repeat('s', 6);
+    $params = array_fill(0, 6, $like);
+}
+
+// 4. Ambil Daftar Pesanan (Tampil) dengan Pencarian
 $query = "
     SELECT 
         b.id, b.booking_code, b.check_in, b.check_out, b.total_price, b.status, b.created_at,
@@ -66,10 +90,38 @@ $query = "
     JOIN users u ON b.user_id = u.id
     JOIN rooms r ON b.room_id = r.id
     JOIN room_types rt ON r.room_type_id = rt.id
-    ORDER BY b.created_at DESC
 ";
-$bookings_result = $koneksi->query($query); // BARIS INI (sekitar baris 87) SEKARANG TIDAK MEMANGGIL TABEL 'payments'
-$bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
+
+if (!empty($where_clauses)) {
+    $query .= " WHERE " . implode(' AND ', $where_clauses);
+}
+
+$query .= " ORDER BY b.created_at DESC";
+
+// Gunakan prepare statement jika ada pencarian
+if (!empty($search_term)) {
+    $stmt = $koneksi->prepare($query);
+    // Panggil bind_param menggunakan call_user_func_array karena parameter dinamis
+
+    $params_ref = array();
+
+    $params_ref[] = &$param_types;
+    
+    foreach ($params as $param) {
+        $params_ref[] = &$param;
+    }
+
+    call_user_func_array(array($stmt, 'bind_param'), $params_ref);
+    $stmt->execute();
+    $bookings_result = $stmt->get_result();
+    $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} else {
+    // Jalankan kueri sederhana jika tidak ada pencarian
+    $bookings_result = $koneksi->query($query);
+    $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -129,6 +181,16 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                 <?= $message ?>
                 <div class="row my-4">
                     <h3 class="fs-4 mb-3">Daftar Semua Pesanan</h3>
+
+                    <div class="col-md-12 mb-3">
+                        <form method="GET" action="kelola_pesanan.php" class="d-flex">
+                            <input type="text" name="search" class="form-control me-2" placeholder="Cari Kode Booking, Pelanggan, Kamar, atau Status..." value="<?= htmlspecialchars($search_term) ?>">
+                            <button type="submit" class="btn btn-outline-primary">Cari</button>
+                            <?php if (!empty($search_term)): ?>
+                                <a href="kelola_pesanan.php" class="btn btn-outline-secondary ms-2">Reset</a>
+                            <?php endif; ?>
+                        </form>
+                    </div>
                     <div class="col-md-12">
                         <div class="table-responsive">
                             <table class="table bg-white rounded shadow-sm table-hover">
@@ -145,31 +207,40 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($bookings as $booking): ?>
+                                    <?php if (!empty($bookings)): ?>
+                                        <?php foreach ($bookings as $booking): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($booking['booking_code']) ?></td>
+                                                <td>
+                                                    <?= htmlspecialchars($booking['user_name']) ?><br>
+                                                    <small class="text-muted"><?= htmlspecialchars($booking['user_email']) ?></small>
+                                                </td>
+                                                <td><?= htmlspecialchars($booking['room_number']) ?> (<?= htmlspecialchars($booking['room_type_name']) ?>)</td>
+                                                <td><?= htmlspecialchars($booking['check_in']) ?></td>
+                                                <td><?= htmlspecialchars($booking['check_out']) ?></td>
+                                                <td>Rp <?= number_format($booking['total_price'], 0, ',', '.') ?></td>
+                                                <td>
+                                                    <span class="badge status-<?= str_replace('_', '-', htmlspecialchars($booking['status'])) ?>">
+                                                        <?= strtoupper(htmlspecialchars($booking['status'])) ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-warning text-dark action-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#actionModal"
+                                                        data-id="<?= $booking['id'] ?>"
+                                                        data-code="<?= htmlspecialchars($booking['booking_code']) ?>"
+                                                        data-current-status="<?= htmlspecialchars($booking['status']) ?>"
+                                                        data-room-id="<?= $booking['room_id'] ?>">
+                                                        <i class="fas fa-cogs"></i> Status
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
                                         <tr>
-                                            <td><?= htmlspecialchars($booking['booking_code']) ?></td>
-                                            <td><?= htmlspecialchars($booking['user_name']) ?></td>
-                                            <td><?= htmlspecialchars($booking['room_number']) ?> (<?= htmlspecialchars($booking['room_type_name']) ?>)</td>
-                                            <td><?= htmlspecialchars($booking['check_in']) ?></td>
-                                            <td><?= htmlspecialchars($booking['check_out']) ?></td>
-                                            <td>Rp <?= number_format($booking['total_price'], 0, ',', '.') ?></td>
-                                            <td>
-                                                <span class="badge status-<?= str_replace('_', '-', htmlspecialchars($booking['status'])) ?>">
-                                                    <?= strtoupper(htmlspecialchars($booking['status'])) ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning text-dark action-btn"
-                                                    data-bs-toggle="modal" data-bs-target="#actionModal"
-                                                    data-id="<?= $booking['id'] ?>"
-                                                    data-code="<?= htmlspecialchars($booking['booking_code']) ?>"
-                                                    data-current-status="<?= htmlspecialchars($booking['status']) ?>"
-                                                    data-room-id="<?= $booking['room_id'] ?>">
-                                                    <i class="fas fa-cogs"></i> Status
-                                                </button>
-                                            </td>
+                                            <td colspan="8" class="text-center">Tidak ada pesanan yang ditemukan.</td>
                                         </tr>
-                                    <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -190,6 +261,7 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                     <div class="modal-body">
                         <input type="hidden" name="booking_id" id="modal_booking_id">
                         <input type="hidden" name="room_id" id="modal_room_id">
+                        <input type="hidden" name="booking_code_display" id="modal_booking_code_input">
                         <p>Kode Booking: <strong id="modal_booking_code"></strong></p>
                         <p>Status Saat Ini: <span class="badge" id="modal_current_status_badge"></span></p>
 
@@ -202,6 +274,7 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                                 <option value="checked_in">checked_in (Sudah Check-in)</option>
                                 <option value="checked_out">checked_out (Sudah Check-out)</option>
                                 <option value="cancelled">cancelled (Dibatalkan)</option>
+                                <option value="failed">failed (Pembayaran Gagal)</option>
                             </select>
                         </div>
                     </div>
@@ -235,6 +308,7 @@ $bookings = $bookings_result->fetch_all(MYSQLI_ASSOC);
                 document.getElementById('modal_booking_id').value = id;
                 document.getElementById('modal_room_id').value = roomId;
                 document.getElementById('modal_booking_code').textContent = code;
+                document.getElementById('modal_booking_code_input').value = code; // Set untuk pesan sukses
 
                 const statusBadge = document.getElementById('modal_current_status_badge');
                 statusBadge.textContent = status.toUpperCase();

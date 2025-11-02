@@ -10,11 +10,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 
 $message = '';
 
-// Fungsi untuk Ambil Semua Tipe Kamar
+// Fungsi untuk Ambil Semua Tipe Kamar (Tidak Berubah)
 $room_types_result = $koneksi->query("SELECT * FROM room_types");
 $room_types = $room_types_result->fetch_all(MYSQLI_ASSOC);
 
-// --- Logika CRUD Kamar ---
+// --- Logika CRUD Kamar (Tidak Berubah) ---
 
 // 1. Tambah Kamar
 if (isset($_POST['add_room'])) {
@@ -80,15 +80,108 @@ if (isset($_GET['delete_id'])) {
 }
 
 
-// 4. Ambil Daftar Kamar (Tampil)
+// --- Logika Pencarian dan Pengurutan ---
+$search_term = $_GET['search'] ?? '';
+$sort_by = $_GET['sort'] ?? 'latest';
+$where_clauses = [];
+$order_clause = "";
+$params = [];
+$param_types = '';
+
+// 1. Kondisi Pencarian (Filtering)
+if (!empty($search_term)) {
+    // VARIABEL INI HARUS TETAP DIDEFINISIKAN SEBAGAI VARIABEL TERPISAH
+    // AGAR BISA DIAKSES SEBAGAI REFERENSI DI call_user_func_array
+    $like_room_number = '%' . $search_term . '%';
+    $like_room_type = '%' . $search_term . '%';
+    $like_floor = '%' . $search_term . '%';
+    $like_status = '%' . $search_term . '%';
+
+    $where_clauses[] = "
+        (
+            r.room_number LIKE ? OR
+            rt.name LIKE ? OR
+            r.floor LIKE ? OR
+            r.status LIKE ?
+        )
+    ";
+    
+    // Tambahkan 4 variabel 'like' sebagai parameter
+    $params = array(
+        $like_room_number,
+        $like_room_type,
+        $like_floor,
+        $like_status
+    );
+    $param_types = 'ssss'; 
+}
+
+// 2. Pengurutan (Sorting)
+switch ($sort_by) {
+    case 'room_asc':
+        $order_clause = "ORDER BY r.room_number ASC";
+        break;
+    case 'room_desc':
+        $order_clause = "ORDER BY r.room_number DESC";
+        break;
+    case 'floor_asc':
+        $order_clause = "ORDER BY r.floor ASC, r.room_number ASC";
+        break;
+    case 'floor_desc':
+        $order_clause = "ORDER BY r.floor DESC, r.room_number ASC";
+        break;
+    case 'type_asc':
+        $order_clause = "ORDER BY rt.name ASC, r.room_number ASC";
+        break;
+    case 'type_desc':
+        $order_clause = "ORDER BY rt.name DESC, r.room_number ASC";
+        break;
+    case 'latest': // Default
+    default:
+        $order_clause = "ORDER BY r.id DESC"; // Asumsi ID kamar mencerminkan terbaru
+        break;
+}
+
+
+// 3. Kueri Gabungan
 $query = "
     SELECT r.*, rt.name as room_type_name
     FROM rooms r
     JOIN room_types rt ON r.room_type_id = rt.id
-    ORDER BY r.floor, r.room_number
 ";
-$rooms_result = $koneksi->query($query);
-$rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
+
+if (!empty($where_clauses)) {
+    $query .= " WHERE " . implode(' AND ', $where_clauses);
+}
+
+$query .= " " . $order_clause;
+
+// Eksekusi Kueri
+if (!empty($params)) {
+    $stmt = $koneksi->prepare($query);
+    
+    // START PERBAIKAN: Ubah array nilai menjadi array referensi
+    $ref_params = array();
+    $ref_params[] = &$param_types; 
+    
+    // Iterasi melalui setiap parameter, dan buat referensinya
+    foreach($params as $key => $value) {
+        $ref_params[] = &$params[$key];
+    }
+    
+    // Panggil bind_param menggunakan array referensi
+    call_user_func_array([$stmt, 'bind_param'], $ref_params);
+
+    $stmt->execute();
+    $rooms_result = $stmt->get_result();
+    $rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} else {
+    // Jalankan kueri sederhana jika tidak ada pencarian
+    $rooms_result = $koneksi->query($query);
+    $rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -117,11 +210,44 @@ $rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
                 <?= $message ?>
                 <div class="row my-4">
                     <h3 class="fs-4 mb-3">Daftar Kamar</h3>
-                    <div class="col text-end mb-3">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomModal">
-                            <i class="fas fa-plus me-2"></i>Tambah Kamar
-                        </button>
+                    
+                    <div class="col-md-12 d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex flex-grow-1 me-3">
+                            <form method="GET" action="kelola_kamar.php" class="d-flex w-100">
+                                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort_by) ?>">
+                                <input type="text" name="search" class="form-control me-2" placeholder="Cari No. Kamar, Tipe, Lantai, atau Status..." value="<?= htmlspecialchars($search_term) ?>">
+                                <button type="submit" class="btn btn-outline-primary">Cari</button>
+                                <?php if (!empty($search_term)): ?>
+                                    <a href="kelola_kamar.php?sort=<?= htmlspecialchars($sort_by) ?>" class="btn btn-outline-secondary ms-2">Reset</a>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+                        
+                        <div class="d-flex align-items-center">
+                            <form method="GET" action="kelola_kamar.php" class="me-3">
+                                <input type="hidden" name="search" value="<?= htmlspecialchars($search_term) ?>">
+                                <select name="sort" onchange="this.form.submit()" class="form-select form-select-sm">
+                                    <option value="latest" <?= $sort_by == 'latest' ? 'selected' : '' ?>>Urutkan: Terbaru</option>
+                                    <optgroup label="Nomor Kamar">
+                                        <option value="room_asc" <?= $sort_by == 'room_asc' ? 'selected' : '' ?>>Menurun (A-Z)</option>
+                                        <option value="room_desc" <?= $sort_by == 'room_desc' ? 'selected' : '' ?>>Menaik (Z-A)</option>
+                                    </optgroup>
+                                    <optgroup label="Lantai">
+                                        <option value="floor_asc" <?= $sort_by == 'floor_asc' ? 'selected' : '' ?>>Terkecil - Terbesar</option>
+                                        <option value="floor_desc" <?= $sort_by == 'floor_desc' ? 'selected' : '' ?>>Terbesar - Terkecil</option>
+                                    </optgroup>
+                                    <optgroup label="Tipe Kamar">
+                                        <option value="type_asc" <?= $sort_by == 'type_asc' ? 'selected' : '' ?>>Menurun (A-Z)</option>
+                                        <option value="type_desc" <?= $sort_by == 'type_desc' ? 'selected' : '' ?>>Menaik (Z-A)</option>
+                                    </optgroup>
+                                </select>
+                            </form>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomModal">
+                                <i class="fas fa-plus me-2"></i>Tambah Kamar
+                            </button>
+                        </div>
                     </div>
+                    
                     <div class="col-md-12">
                         <div class="table-responsive">
                             <table class="table bg-white rounded shadow-sm table-hover">
@@ -136,40 +262,46 @@ $rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php $no = 1; foreach ($rooms as $room): ?>
+                                    <?php if (!empty($rooms)): ?>
+                                        <?php $no = 1; foreach ($rooms as $room): ?>
+                                            <tr>
+                                                <th scope="row"><?= $no++ ?></th>
+                                                <td><?= htmlspecialchars($room['room_number']) ?></td>
+                                                <td><?= htmlspecialchars($room['room_type_name']) ?></td>
+                                                <td><?= htmlspecialchars($room['floor']) ?></td>
+                                                <td>
+                                                    <?php
+                                                        $status_class = match($room['status']) {
+                                                            'available' => 'badge bg-success',
+                                                            'booked' => 'badge bg-warning text-dark',
+                                                            'maintenance' => 'badge bg-danger',
+                                                            default => 'badge bg-secondary',
+                                                        };
+                                                        echo "<span class='{$status_class}'>" . ucfirst(htmlspecialchars($room['status'])) . "</span>";
+                                                    ?>
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-info text-white edit-btn"
+                                                            data-bs-toggle="modal" data-bs-target="#editRoomModal"
+                                                            data-id="<?= $room['id'] ?>"
+                                                            data-number="<?= htmlspecialchars($room['room_number']) ?>"
+                                                            data-type-id="<?= $room['room_type_id'] ?>"
+                                                            data-floor="<?= $room['floor'] ?>"
+                                                            data-status="<?= $room['status'] ?>"
+                                                            data-image="<?= htmlspecialchars($room['image']) ?>">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <a href="kelola_kamar.php?delete_id=<?= $room['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus kamar ini?');">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
                                         <tr>
-                                            <th scope="row"><?= $no++ ?></th>
-                                            <td><?= htmlspecialchars($room['room_number']) ?></td>
-                                            <td><?= htmlspecialchars($room['room_type_name']) ?></td>
-                                            <td><?= htmlspecialchars($room['floor']) ?></td>
-                                            <td>
-                                                <?php
-                                                    $status_class = match($room['status']) {
-                                                        'available' => 'badge bg-success',
-                                                        'booked' => 'badge bg-warning',
-                                                        'maintenance' => 'badge bg-danger',
-                                                        default => 'badge bg-secondary',
-                                                    };
-                                                    echo "<span class='{$status_class}'>" . ucfirst(htmlspecialchars($room['status'])) . "</span>";
-                                                ?>
-                                            </td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-info text-white edit-btn"
-                                                        data-bs-toggle="modal" data-bs-target="#editRoomModal"
-                                                        data-id="<?= $room['id'] ?>"
-                                                        data-number="<?= htmlspecialchars($room['room_number']) ?>"
-                                                        data-type-id="<?= $room['room_type_id'] ?>"
-                                                        data-floor="<?= $room['floor'] ?>"
-                                                        data-status="<?= $room['status'] ?>"
-                                                        data-image="<?= htmlspecialchars($room['image']) ?>">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <a href="kelola_kamar.php?delete_id=<?= $room['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus kamar ini?');">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            </td>
+                                            <td colspan="6" class="text-center">Tidak ada kamar yang ditemukan.</td>
                                         </tr>
-                                    <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>

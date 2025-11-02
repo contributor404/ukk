@@ -25,7 +25,7 @@ $query = "SELECT b.*, r.room_number, r.floor, rt.name as room_type, rt.price_per
           JOIN rooms r ON b.room_id = r.id 
           JOIN room_types rt ON r.room_type_id = rt.id 
           WHERE b.booking_code = '$booking_code' AND b.user_id = $user_id";
-$result = $koneksi->query($query); // Baris 28 (lokasi error yang dilaporkan) telah diperbaiki
+$result = $koneksi->query($query);
 
 // Cek apakah booking ditemukan
 if ($result->num_rows == 0) {
@@ -74,6 +74,14 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detail Booking - Hotel Booking</title>
     <style>
+        /* CSS Utama */
+        .print-area {
+            display: none;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+        }
+
         .booking-card {
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -147,7 +155,96 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
             margin-bottom: 20px;
             border-radius: 5px;
         }
+
+        /* --- CSS Khusus untuk Print/Cetak --- */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            
+            .print-area,
+            .print-area * {
+                visibility: visible;
+            }
+
+            .print-area {
+                position: absolute;
+                left: 0;
+                display: flex;
+                top: 0;
+                width: 100%;
+                /* Mengubah lebar menjadi 100% untuk tampilan cetak */
+                max-width: 80mm;
+                /* Batasi lebar seperti struk thermal, misal 80mm */
+                margin: 0 auto;
+                /* Posisikan di tengah halaman cetak */
+                padding: 10px;
+                /* Tambahkan padding agar tidak terlalu mepet */
+                color: #000;
+                /* Pastikan teks berwarna hitam */
+                font-family: monospace, sans-serif;
+                /* Gunakan font yang ringkas */
+                font-size: 12px;
+            }
+
+            .booking-card,
+            .booking-header,
+            .booking-body,
+            .container,
+            .row,
+            .col-md-8 {
+                /* Sembunyikan semua elemen tampilan utama */
+                display: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+
+            .print-header {
+                text-align: center;
+                margin-bottom: 10px;
+                border-bottom: 1px dashed #000;
+                padding-bottom: 5px;
+            }
+
+            .print-detail p {
+                margin: 2px 0;
+            }
+
+            .print-total {
+                margin-top: 10px;
+                border-top: 1px dashed #000;
+                padding-top: 5px;
+                text-align: right;
+            }
+
+            .print-total strong {
+                font-size: 14px;
+            }
+
+            .d-grid {
+                display: none;
+            }
+
+            .footer {
+                display: none;
+            }
+
+            .status-badge {
+                /* Pastikan badge status terlihat saat dicetak, tetapi tanpa warna latar belakang */
+                background: none !important;
+                color: #000 !important;
+                padding: 0;
+                border: none;
+                font-weight: bold;
+            }
+        }
     </style>
+    <script>
+        function printStruk() {
+            window.print();
+        }
+    </script>
 </head>
 
 <body>
@@ -164,7 +261,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
                             Kode Booking: <?= $booking['booking_code'] ?>
                         </div>
 
-                        <div class="info-box">
+                        <div class="info-box d-print-none">
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Status Pemesanan:</strong>
                             <span class="status-badge <?= $booking['status'] == 'confirmed' ? 'status-confirmed' : ($booking['status'] == 'cancelled' ? 'status-cancelled' : 'status-pending') ?>">
@@ -207,11 +304,15 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
                             </div>
                         </div>
 
-                        <div class="alert alert-info">
+                        <div class="alert alert-info d-print-none">
                             <i class="fas fa-info-circle me-2"></i> Pesanan Anda akan diproses setelah admin menyetujui pembayaran. Silakan cek status pemesanan secara berkala di halaman riwayat pemesanan.
                         </div>
 
-                        <div class="d-grid gap-2">
+                        <div class="d-grid gap-2 mb-3 d-print-none">
+                            <button onclick="printStruk()" class="btn btn-success btn-lg"><i class="fas fa-print me-2"></i> Cetak Struk</button>
+                        </div>
+
+                        <div class="d-grid gap-2 d-print-none">
                             <a href="riwayat.php" class="btn btn-primary btn-lg">Lihat Riwayat Pemesanan</a>
                             <a href="index.php" class="btn btn-outline-secondary">Kembali ke Beranda</a>
                         </div>
@@ -221,7 +322,40 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
         </div>
     </div>
 
-    <footer class="bg-dark text-white py-5 mt-5">
+    <div class="print-area text-center" style="flex-direction: column; align-items: center;">
+        <div class="print-header">
+            <h3>Hotel Booking</h3>
+            <p>Jl. Hotel Indah No. 123</p>
+            <p>(021) 1234-5678</p>
+        </div>
+
+        <div class="print-detail">
+            <p>===================================</p>
+            <p>Tanggal Cetak: <?= date('d/m/Y H:i:s') ?></p>
+            <p>Kode Booking: <strong><?= $booking['booking_code'] ?></strong></p>
+            <p>-----------------------------------</p>
+            <p>Kamar: <?= $booking['room_type'] ?> (No. <?= $booking['room_number'] ?>)</p>
+            <p>Lantai: <?= $booking['floor'] ?></p>
+            <p>Check-in: <?= date('d/m/Y', strtotime($booking['check_in'])) ?></p>
+            <p>Check-out: <?= date('d/m/Y', strtotime($booking['check_out'])) ?></p>
+            <p>Durasi: <?= $nights ?> malam</p>
+            <p>-----------------------------------</p>
+            <p>Harga/Malam: Rp <?= number_format($booking['price_per_night'], 0, ',', '.') ?></p>
+            <p>Total Harga: Rp <?= $formatted_price ?></p>
+            <p>Status Pembayaran: <?= $payment_status ?></p>
+        </div>
+
+        <div class="print-total">
+            <p>===================================</p>
+            <p>Total Bayar: <strong>Rp <?= $formatted_price ?></strong></p>
+        </div>
+
+        <div class="text-center mt-3">
+            <p>Terima kasih atas pemesanan Anda!</p>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white py-5 mt-5 d-print-none">
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">

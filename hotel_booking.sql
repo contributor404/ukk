@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 30, 2025 at 01:30 PM
+-- Generation Time: Nov 02, 2025 at 09:41 AM
 -- Server version: 8.0.30
 -- PHP Version: 8.1.10
 
@@ -44,9 +44,10 @@ CREATE TABLE `bookings` (
 --
 
 INSERT INTO `bookings` (`id`, `booking_code`, `user_id`, `room_id`, `check_in`, `check_out`, `total_price`, `status`, `created_at`) VALUES
-(22, 'BK20251030121520857', 1, 24, '2025-10-30', '2025-11-01', '1200000.00', 'checked_in', '2025-10-30 19:15:20'),
+(22, 'BK20251030121520857', 1, 24, '2025-10-30', '2025-11-01', '1200000.00', 'checked_out', '2025-10-30 19:15:20'),
 (23, 'BK20251030122212773', 2, 25, '2025-10-31', '2025-11-19', '11400000.00', 'paid', '2025-10-30 19:22:12'),
-(24, 'BK20251030122908374', 1, 26, '2025-10-30', '2026-02-25', '88500000.00', 'confirmed', '2025-10-30 19:29:08');
+(24, 'BK20251030122908374', 1, 26, '2025-10-30', '2026-02-25', '88500000.00', 'confirmed', '2025-10-30 19:29:08'),
+(25, 'BK20251101000401421', 1, 27, '2025-12-05', '2026-01-14', '38000000.00', 'paid', '2025-11-01 07:04:01');
 
 -- --------------------------------------------------------
 
@@ -69,9 +70,10 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`id`, `image`, `room_number`, `room_type_id`, `floor`, `status`, `created_at`) VALUES
-(24, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '1', 9, 1, 'booked', '2025-10-20 11:10:15'),
+(24, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '1', 9, 1, 'available', '2025-10-20 11:10:15'),
 (25, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '2', 9, 1, 'available', '2025-10-20 11:11:05'),
-(26, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '2', 2, 1, 'booked', '2025-10-20 11:11:05');
+(26, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '2', 2, 1, 'booked', '2025-10-20 11:11:05'),
+(27, 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg', '5', 12, 5, 'booked', '2025-11-01 07:02:42');
 
 -- --------------------------------------------------------
 
@@ -172,13 +174,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `room_types`
