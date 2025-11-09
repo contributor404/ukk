@@ -303,9 +303,9 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
                             </div>
                         </div>
 
-                        <div class="alert alert-info d-print-none">
+                        <!-- <div class="alert alert-info d-print-none">
                             <i class="fas fa-info-circle me-2"></i> Pesanan Anda akan diproses setelah admin menyetujui pembayaran. Silakan cek status pemesanan secara berkala di halaman riwayat pemesanan.
-                        </div>
+                        </div> -->
 
                         <?php
                         if ($booking["status"] != "pending") {

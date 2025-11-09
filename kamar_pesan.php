@@ -10,18 +10,15 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Cek apakah ada parameter id *tipe* kamar (room_type_id)
-// Berdasarkan query: $query = "SELECT rt.*, rt.name as room_type, r.id as r_id, r.* FROM room_types rt RIGHT JOIN rooms r ON rt.id = r.room_type_id AND r.status = 'available' WHERE rt.id = $room_id";
-// Variabel $room_id di URL sebenarnya adalah room_type_id.
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     header('Location: kamar_semua.php');
     exit;
 }
 
-$room_type_id = $_GET['id']; // Mengubah nama variabel agar lebih jelas
+$room_type_id = $_GET['id'];
 $user_id = $_SESSION['user_id'];
 
 // Query untuk mengambil *satu* kamar yang *tersedia* dari tipe kamar yang diminta
-// Kita hanya perlu mengambil satu kamar yang 'available' dari tipe kamar tersebut.
 $query = "
     SELECT r.id, r.room_number, r.floor, rt.name AS room_type, rt.price_per_night, rt.capacity, rt.id AS room_type_id
     FROM rooms r 
@@ -41,14 +38,16 @@ if ($result->num_rows == 0) {
 $room = $result->fetch_assoc();
 $room_id_to_book = $room["id"]; // ID kamar fisik yang akan di-booking
 
-// Proses form pemesanan
+// Variabel untuk menyimpan pesan
 $success = "";
 $error = "";
+$booking_code_success = ""; // Menyimpan booking code untuk ditampilkan dan tombol cetak
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Validasi input
     $check_in = $koneksi->real_escape_string($_POST['check_in']);
     $check_out = $koneksi->real_escape_string($_POST['check_out']);
+    $payment_method = $koneksi->real_escape_string($_POST['payment_method']); // Ambil metode pembayaran
 
     // Validasi tanggal
     $today = date('Y-m-d');
@@ -81,16 +80,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $koneksi->begin_transaction();
 
             try {
-                // 1. Insert ke tabel bookings (status default 'pending')
+                // 1. Insert ke tabel bookings (STATUS LANGSUNG 'paid')
                 $query_booking = "INSERT INTO bookings (booking_code, user_id, room_id, check_in, check_out, total_price, status) 
-                                 VALUES ('$booking_code', $user_id, $room_id_to_book, '$check_in', '$check_out', $total_price, 'pending')";
+                                 VALUES ('$booking_code', $user_id, $room_id_to_book, '$check_in', '$check_out', $total_price, 'paid')";
 
                 if (!$koneksi->query($query_booking)) {
                     throw new Exception("Error saat menyimpan pemesanan: " . $koneksi->error);
                 }
 
                 // 2. Update status kamar menjadi booked
-                // *PENTING*: Update hanya kamar yang baru saja di-booking, bukan tipe kamarnya.
                 $query_update_room = "UPDATE rooms SET status = 'booked' WHERE id = $room_id_to_book";
 
                 if (!$koneksi->query($query_update_room)) {
@@ -100,11 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Commit transaksi
                 $koneksi->commit();
 
-                $success = "Pemesanan berhasil dibuat dengan kode booking: **$booking_code**. Admin akan memverifikasi pembayaran Anda.";
+                $success = "Pemesanan dan pembayaran berhasil! Status kamar Anda telah dikonfirmasi dan dibayar.";
+                $booking_code_success = $booking_code; // Simpan kode booking untuk tombol cetak
 
-                // Redirect ke halaman detail booking setelah 2 detik
-                // Pastikan kamar_kode.php ada untuk menampilkan detail
-                header("refresh:2;url=kamar_kode.php?kode=$booking_code");
             } catch (Exception $e) {
                 // Rollback transaksi jika terjadi error
                 $koneksi->rollback();
@@ -117,14 +113,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // Format harga
 $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
 
+// Logika untuk menentukan tanggal minimal check-in
 $min_date = date('Y-m-d');
+$list_pesan = $koneksi->query("SELECT check_out FROM bookings b WHERE b.user_id = $user_id ORDER BY check_out DESC LIMIT 1");
 
-$list_pesan = $koneksi->query("SELECT * FROM bookings b WHERE b.user_id = $user_id")->fetch_all(MYSQLI_ASSOC);
-if (isset($list_pesan) && !empty($list_pesan)) {
-    usort($list_pesan, function ($a, $b) {
-        return strtotime($b['check_out']) - strtotime($a['check_out']);
-    });
-    $min_date = date("Y-m-d", strtotime($list_pesan[0]["check_out"] . " +1 day"));
+if ($list_pesan->num_rows > 0) {
+    $last_booking = $list_pesan->fetch_assoc();
+    $min_date_for_new_booking = date("Y-m-d", strtotime($last_booking["check_out"] . " +1 day"));
+    // Pastikan tanggal minimal tidak kurang dari hari ini
+    $min_date = max($min_date, $min_date_for_new_booking);
 }
 ?>
 <!DOCTYPE html>
@@ -133,7 +130,7 @@ if (isset($list_pesan) && !empty($list_pesan)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesan Kamar - Hotel Booking</title>
+    <title>Pesan Kamar & Bayar - Hotel Booking</title>
     <style>
         .booking-card {
             border-radius: 15px;
@@ -175,58 +172,78 @@ if (isset($list_pesan) && !empty($list_pesan)) {
             <div class="col-md-8">
                 <div class="booking-card">
                     <div class="booking-header">
-                        <h1>Formulir Pemesanan Kamar</h1>
+                        <h1>Formulir Pemesanan & Pembayaran</h1>
                     </div>
 
                     <div class="booking-body">
                         <?php if ($success): ?>
-                            <div class="alert alert-success">
-                                <?= $success ?>
+                            <div class="alert alert-success text-center">
+                                <h4>✅ Pembayaran Berhasil!</h4>
+                                <p><?= $success ?></p>
+                                <p>Kode Booking Anda: **<?= $booking_code_success ?>**</p>
+                                <a href="kamar_kode.php?kode=<?= $booking_code_success ?>" class="btn btn-warning btn-lg mt-3">
+                                    <i class="fas fa-print me-2"></i> Cetak Bukti Pemesanan
+                                </a>
                             </div>
-                        <?php endif; ?>
-
-                        <?php if ($error): ?>
-                            <div class="alert alert-danger">
-                                <?= $error ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="room-info">
-                            <h3>Informasi Kamar</h3>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Nomor Kamar:</strong> <?= $room['room_number'] ?></p>
-                                    <p><strong>Tipe Kamar:</strong> <?= $room['room_type'] ?></p>
-                                    <p><strong>Lantai:</strong> <?= $room['floor'] ?></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Kapasitas:</strong> <?= $room['capacity'] ?> orang</p>
-                                    <p><strong>Harga per Malam:</strong> <span class="price-tag">Rp <?= $formatted_price ?></span></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form method="POST" action="">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="check_in" class="form-label">Tanggal Check-in</label>
-                                    <input type="date" class="form-control" id="check_in" name="check_in" min="<?= $min_date ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="check_out" class="form-label">Tanggal Check-out</label>
-                                    <input type="date" class="form-control" id="check_out" name="check_out" min="<?= date('Y-m-d', strtotime('+1 day')) ?>" required>
-                                </div>
-                            </div>
-
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i> Pesanan Anda akan diproses setelah admin menyetujui pembayaran.
-                            </div>
-
                             <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary btn-lg">Pesan Sekarang</button>
-                                <a href="kamar_detail.php?id=<?= $room['room_type_id'] ?>" class="btn btn-outline-secondary">Kembali</a>
+                                <a href="kamar_semua.php" class="btn btn-outline-primary mt-3">Kembali ke Daftar Kamar</a>
                             </div>
-                        </form>
+
+                        <?php else: ?>
+                            <?php if ($error): ?>
+                                <div class="alert alert-danger">
+                                    <?= $error ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="room-info">
+                                <h3>Informasi Kamar yang Dipilih</h3>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Nomor Kamar:</strong> <?= $room['room_number'] ?></p>
+                                        <p><strong>Tipe Kamar:</strong> <?= $room['room_type'] ?></p>
+                                        <p><strong>Lantai:</strong> <?= $room['floor'] ?></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Kapasitas:</strong> <?= $room['capacity'] ?> orang</p>
+                                        <p><strong>Harga per Malam:</strong> <span class="price-tag">Rp <?= $formatted_price ?></span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form method="POST" action="">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="check_in" class="form-label">Tanggal Check-in</label>
+                                        <input type="date" class="form-control" id="check_in" name="check_in" min="<?= $min_date ?>" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="check_out" class="form-label">Tanggal Check-out</label>
+                                        <input type="date" class="form-control" id="check_out" name="check_out" min="<?= date('Y-m-d', strtotime('+1 day', strtotime($min_date))) ?>" required>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="payment_method" class="form-label">Metode Pembayaran</label>
+                                    <select class="form-select" id="payment_method" name="payment_method" required>
+                                        <option value="">Pilih Metode Pembayaran</option>
+                                        <option value="transfer">Transfer Bank (BCA/Mandiri)</option>
+                                        <option value="credit_card">Kartu Kredit/Debit</option>
+                                        <option value="e_wallet">E-Wallet (GoPay/OVO/Dana)</option>
+                                    </select>
+                                    <small class="form-text text-muted">Memilih metode pembayaran akan mensimulasikan pembayaran yang berhasil dan status booking langsung menjadi **Paid**.</small>
+                                </div>
+
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> Perhatian: Dengan menekan tombol **Pesan dan Bayar**, status pemesanan Anda akan langsung menjadi **Paid** di sistem.
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-success btn-lg">Pesan dan Bayar Sekarang</button>
+                                    <a href="kamar_detail.php?id=<?= $room['room_type_id'] ?>" class="btn btn-outline-secondary">Kembali</a>
+                                </div>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -267,6 +284,10 @@ if (isset($list_pesan) && !empty($list_pesan)) {
         document.addEventListener('DOMContentLoaded', function() {
             const checkInInput = document.getElementById('check_in');
             const checkOutInput = document.getElementById('check_out');
+            const minCheckOutDate = "<?= date('Y-m-d', strtotime('+1 day', strtotime($min_date))) ?>";
+
+            // Set initial minimum check-out date
+            checkOutInput.min = minCheckOutDate;
 
             function updateDates() {
                 const checkInDate = new Date(checkInInput.value);
@@ -280,12 +301,16 @@ if (isset($list_pesan) && !empty($list_pesan)) {
                     const month = String(nextDay.getMonth() + 1).padStart(2, '0');
                     const day = String(nextDay.getDate()).padStart(2, '0');
 
-                    checkOutInput.min = `${year}-${month}-${day}`;
+                    const newMinCheckOut = `${year}-${month}-${day}`;
+                    checkOutInput.min = newMinCheckOut;
 
                     // Reset check-out date if it's before the new minimum
                     if (checkOutInput.value && new Date(checkOutInput.value) <= checkInDate) {
                         checkOutInput.value = '';
                     }
+                } else {
+                     // If check-in is cleared, reset check-out min to the initial value
+                    checkOutInput.min = minCheckOutDate;
                 }
             }
 
