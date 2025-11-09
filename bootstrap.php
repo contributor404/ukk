@@ -44,10 +44,11 @@ if (isset($_SERVER["PHP_SELF"]) && !(str_contains($_SERVER["PHP_SELF"], "login.p
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                 <?php if ($userRole == 'admin'): ?>
                                     <li><a class="dropdown-item" href="admin/index.php"><i class="fas fa-tachometer-alt me-2"></i>Dashboard Admin</a></li>
-                                    <li>
-                                        <hr class="dropdown-divider">
-                                    </li>
                                 <?php endif; ?>
+                                <li><a class="dropdown-item" href="profile.php"><i class="fas fa-person me-2"></i>Profile</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li><a class="dropdown-item text-danger" href="login.php?logout=1"><i class="fas fa-sign-out-alt me-2"></i>Keluar</a></li>
                             </ul>
                         </li>

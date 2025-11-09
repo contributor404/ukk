@@ -50,7 +50,6 @@ $nights = $interval->days;
 // Karena tidak ada tabel payments, status pembayaran akan disamakan dengan status booking.
 $status_labels = [
     'pending' => 'Menunggu Konfirmasi',
-    'confirmed' => 'Dikonfirmasi',
     'cancelled' => 'Dibatalkan',
     'checked_in' => 'Check-in',
     'checked_out' => 'Check-out',
@@ -62,7 +61,7 @@ $booking_status = isset($status_labels[$booking['status']]) ? $status_labels[$bo
 
 // TELAH DIUBAH: Menggunakan status dari tabel bookings sebagai Status Pembayaran
 // Status pembayaran akan menjadi 'Lunas' jika status booking adalah 'paid', atau 'Menunggu Konfirmasi' (pending)
-$payment_status_raw = ($booking['status'] == 'paid' || $booking['status'] == 'confirmed' || $booking['status'] == 'checked_in' || $booking['status'] == 'checked_out') ? 'paid' : ($booking['status'] == 'failed' ? 'failed' : 'pending');
+$payment_status_raw = ($booking['status'] == 'paid' || $booking['status'] == 'checked_in' || $booking['status'] == 'checked_out') ? 'paid' : ($booking['status'] == 'failed' ? 'failed' : 'pending');
 $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$payment_status_raw] : $payment_status_raw;
 
 ?>
@@ -161,7 +160,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
             body * {
                 visibility: hidden;
             }
-            
+
             .print-area,
             .print-area * {
                 visibility: visible;
@@ -308,9 +307,15 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
                             <i class="fas fa-info-circle me-2"></i> Pesanan Anda akan diproses setelah admin menyetujui pembayaran. Silakan cek status pemesanan secara berkala di halaman riwayat pemesanan.
                         </div>
 
-                        <div class="d-grid gap-2 mb-3 d-print-none">
-                            <button onclick="printStruk()" class="btn btn-success btn-lg"><i class="fas fa-print me-2"></i> Cetak Struk</button>
-                        </div>
+                        <?php
+                        if ($booking["status"] != "pending") {
+                        ?>
+                            <div class="d-grid gap-2 mb-3 d-print-none">
+                                <button onclick="printStruk()" class="btn btn-success btn-lg"><i class="fas fa-print me-2"></i> Cetak Struk</button>
+                            </div>
+                        <?php
+                        }
+                        ?>
 
                         <div class="d-grid gap-2 d-print-none">
                             <a href="riwayat.php" class="btn btn-primary btn-lg">Lihat Riwayat Pemesanan</a>
