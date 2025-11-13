@@ -17,6 +17,9 @@
         <a href="laporan.php" class="list-group-item list-group-item-action bg-transparent second-text fw-bold">
             <i class="fas fa-chart-line me-2"></i>Laporan
         </a>
+        <a href="pengeluaran.php" class="list-group-item list-group-item-action bg-transparent second-text fw-bold">
+            <i class="fa-brands fa-bitcoin me-2"></i>Pengeluaran
+        </a>
         <a href="../index.php" class="list-group-item list-group-item-action bg-transparent text-danger fw-bold">
             <i class="fas fa-power-off me-2"></i>Keluar
         </a>

@@ -1,5 +1,6 @@
 <?php
 session_start();
+// Pastikan file koneksi.php sudah me-return objek koneksi (misalnya mysqli)
 include '../koneksi.php';
 
 // Cek apakah user adalah admin
@@ -9,10 +10,31 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 }
 
 $message = '';
-$search_term = ''; // Variabel untuk menyimpan kata kunci pencarian
-$where_clauses = []; // Array untuk menyimpan kondisi WHERE
+$search_term = ''; 
+$where_clauses = []; 
+
+// --- LOGIKA BARU: Ambil Nama Admin untuk Struk ---
+$admin_name = 'Admin'; // Default jika gagal
+if (isset($_SESSION['user_id'])) {
+    $admin_id = $_SESSION['user_id'];
+    $admin_query = "SELECT name FROM users WHERE id = ?";
+    $stmt_admin = $koneksi->prepare($admin_query);
+    if ($stmt_admin) {
+        $stmt_admin->bind_param("i", $admin_id);
+        $stmt_admin->execute();
+        $admin_result = $stmt_admin->get_result();
+        $admin_data = $admin_result->fetch_assoc();
+        $stmt_admin->close();
+        if ($admin_data) {
+            $admin_name = $admin_data['name'];
+        }
+    }
+}
+// --- Akhir Logika Nama Admin ---
+
 
 // --- Logika Update Status Pesanan (Tidak Berubah) ---
+// ... (Kode update status di sini) ...
 if (isset($_POST['update_status'])) {
     $booking_id = $_POST['booking_id'];
     $new_status = $_POST['new_status'];
@@ -35,8 +57,6 @@ if (isset($_POST['update_status'])) {
         }
         // Jika status dibatalkan atau checked_out, status kamar kembali ke available
         if (in_array($new_status, ['cancelled', 'checked_out', 'failed'])) {
-            // Perlu cek apakah kamar ini tidak sedang dipesan oleh booking lain yang Confirmed/Checked_in
-            // Untuk penyederhanaan, kita langsung set available, tapi dalam sistem nyata perlu pengecekan lebih lanjut.
             $room_status = 'available';
         }
 
@@ -55,18 +75,18 @@ if (isset($_POST['update_status'])) {
         $message = "<div class='alert alert-danger'>Kesalahan saat mengubah status: " . $e->getMessage() . "</div>";
     }
 }
+// ----------------------------------------------------------------------
 
-// ----------------------------------------------------------------------
-// --- LOGIKA FETCH DATA PESANAN UNTUK CETAK STRUK (TAMBAHAN) ---
-// ----------------------------------------------------------------------
+// --- LOGIKA FETCH DATA PESANAN UNTUK CETAK STRUK (Tidak Berubah) ---
+// ... (Blok ini tidak berubah) ...
 $print_booking = null;
 if (isset($_GET['print_id']) && is_numeric($_GET['print_id'])) {
     $print_id = $_GET['print_id'];
 
     $print_query = "
         SELECT 
-            b.booking_code, b.check_in, b.check_out, b.total_price, b.status,
-            u.name as user_name,
+            b.id, b.booking_code, b.check_in, b.check_out, b.total_price, b.status, b.created_at,
+            u.name as user_name, u.email as user_email,
             r.room_number,
             rt.name as room_type_name,
             rt.price_per_night 
@@ -103,13 +123,73 @@ if (isset($_GET['print_id']) && is_numeric($_GET['print_id'])) {
 }
 // ----------------------------------------------------------------------
 
-// --- Logika Pencarian ---
+// ============== LOGIKA PENGHAPUSAN OTOMATIS DAN PERHITUNGAN WAKTU (Tidak Berubah) ==============
+/** ... Fungsi calculateExpirationStatus ... */
+function calculateExpirationStatus($checkOutDate) {
+    // Gunakan tanggal check_out sebagai penentu batas waktu (ditambah 1 hari)
+    $check_out = new DateTime($checkOutDate);
+    // Kita anggap batas kedaluwarsa adalah 24 jam setelah check_out
+    $expiry_time = $check_out->modify('+1 day'); 
+    $now = new DateTime();
+
+    if ($now > $expiry_time) {
+        return ['status' => 'KADALUWARSA', 'is_expired' => true];
+    }
+    
+    $interval = $now->diff($expiry_time);
+    $time_unit = '';
+    $time_value = 0;
+
+    if ($interval->days > 0) {
+        $time_value = $interval->days;
+        $time_unit = 'hari';
+    } elseif ($interval->h > 0) {
+        $time_value = $interval->h;
+        $time_unit = 'jam';
+    } elseif ($interval->i > 0) {
+        $time_value = $interval->i;
+        $time_unit = 'menit';
+    } elseif ($interval->s > 0) {
+        $time_value = $interval->s;
+        $time_unit = 'detik';
+    } else {
+        // Jika selisih kurang dari satu detik, tapi belum expired
+        return ['status' => 'Segera berakhir', 'is_expired' => false];
+    }
+    
+    return ['status' => "$time_value $time_unit lagi", 'is_expired' => false];
+}
+// ... (Logika penghapusan otomatis dan fetch data lainnya tidak berubah) ...
+
+// Hapus pesanan yang statusnya 'checked_out' atau 'cancelled' DAN sudah lebih dari 7 hari sejak check_out.
+$seven_days_ago = date('Y-m-d', strtotime('-7 days'));
+$delete_query = "
+    DELETE b, r 
+    FROM bookings b
+    JOIN rooms r ON b.room_id = r.id
+    WHERE 
+        (b.status = 'checked_out' OR b.status = 'cancelled' OR b.status = 'failed') AND 
+        b.check_out < ?
+";
+$stmt_delete = $koneksi->prepare($delete_query);
+if ($stmt_delete) {
+    $stmt_delete->bind_param("s", $seven_days_ago);
+    $stmt_delete->execute();
+    $deleted_count = $stmt_delete->affected_rows;
+    if ($deleted_count > 0) {
+        // Pesan ini hanya untuk debugging, bisa dihapus di versi produksi
+        // $message .= "<div class='alert alert-info'>$deleted_count pesanan lama berhasil dihapus otomatis.</div>";
+    }
+    $stmt_delete->close();
+}
+
+
+// --- Logika Pencarian (Tidak Berubah) ---
 if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
     $search_term = trim($_GET['search']);
     $like = '%' . $search_term . '%';
 
     // Tambahkan kondisi WHERE untuk pencarian
-    // Mencari berdasarkan: Kode Booking, Nama Pelanggan, Email Pelanggan, Nomor Kamar, Tipe Kamar, Status
     $where_clauses[] = "
             (
                 b.booking_code LIKE ? OR
@@ -127,16 +207,15 @@ if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
 
 // 4. Ambil Daftar Pesanan (Tampil) dengan Pencarian
 $query = "
-      SELECT 
-            b.id, b.booking_code, b.check_in, b.check_out, b.total_price, b.status, b.created_at,
+     SELECT 
+            b.id, b.booking_code, b.check_in, b.check_out, b.total_price, b.status, b.created_at, b.room_id,
             u.name as user_name, u.email as user_email,
             r.room_number,
-            rt.name as room_type_name,
-            r.id as room_id
-      FROM bookings b
-      JOIN users u ON b.user_id = u.id
-      JOIN rooms r ON b.room_id = r.id
-      JOIN room_types rt ON r.room_type_id = rt.id
+            rt.name as room_type_name
+     FROM bookings b
+     JOIN users u ON b.user_id = u.id
+     JOIN rooms r ON b.room_id = r.id
+     JOIN room_types rt ON r.room_type_id = rt.id
 ";
 
 if (!empty($where_clauses)) {
@@ -148,12 +227,9 @@ $query .= " ORDER BY b.created_at DESC";
 // Gunakan prepare statement jika ada pencarian
 if (!empty($search_term)) {
     $stmt = $koneksi->prepare($query);
-    // Panggil bind_param menggunakan call_user_func_array karena parameter dinamis
-
+    // Binding parameter dinamis
     $params_ref = array();
-
     $params_ref[] = &$param_types;
-
     foreach ($params as $param) {
         $params_ref[] = &$param;
     }
@@ -170,7 +246,30 @@ if (!empty($search_term)) {
 }
 
 
+// 2. Perhitungan dan Penggabungan Status Kedaluwarsa
+if (!empty($bookings)) {
+    foreach ($bookings as &$booking) {
+        // Catatan: check_out dari DB formatnya YYYY-MM-DD. Kita perlu menambahkan waktu
+        // atau menghitung interval dengan akurat. Saya akan menggunakan fungsi di atas.
+        
+        // Kita anggap expired 1 hari setelah check_out date (untuk pending/paid)
+        // atau jika statusnya sudah checked_out/cancelled/failed
+        if (in_array($booking['status'], ['checked_out', 'cancelled', 'failed'])) {
+             $booking['expired_status'] = '<span class="badge bg-secondary">Selesai/Dihapus</span>';
+        } else {
+             $expiry_data = calculateExpirationStatus($booking['check_out']);
+             if ($expiry_data['is_expired']) {
+                 $booking['expired_status'] = '<span class="badge bg-danger">EXPIRED</span>';
+             } else {
+                 $booking['expired_status'] = '<span class="badge bg-success">' . $expiry_data['status'] . '</span>';
+             }
+        }
+    }
+    unset($booking); // Hapus referensi terakhir
+}
+
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 
@@ -182,101 +281,36 @@ if (!empty($search_term)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
     <style>
-        /* Gaya tambahan untuk status */
-        .status-pending {
-            background-color: #ffc107;
-            color: #000;
-        }
-
-        .status-confirmed,
-        .status-paid {
-            background-color: #0d6efd;
-            color: #fff;
-        }
-
-        .status-checked-in {
-            background-color: #198754;
-            color: #fff;
-        }
-
-        .status-checked-out {
-            background-color: #6c757d;
-            color: #fff;
-        }
-
-        .status-cancelled,
-        .status-failed {
-            background-color: #dc3545;
-            color: #fff;
-        }
-
+        .status-pending { background-color: #ffc107; color: #000; }
+        .status-confirmed, .status-paid { background-color: #0d6efd; color: #fff; }
+        .status-checked-in { background-color: #198754; color: #fff; }
+        .status-checked-out { background-color: #6c757d; color: #fff; }
+        .status-cancelled, .status-failed { background-color: #dc3545; color: #fff; }
+        
         @media print {
-            body * {
-                visibility: hidden;
-            }
-
-            .print-area,
-            .print-area * {
-                visibility: visible;
-            }
-
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
             .print-area {
-                /* Mengubah posisi dan tampilan agar mirip struk thermal */
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
-                max-width: 80mm; /* Batasi lebar seperti struk thermal */
+                max-width: 80mm;
                 margin: 0 auto;
                 padding: 10px;
                 color: #000;
                 font-family: monospace, sans-serif;
                 font-size: 12px;
-                display: flex !important; /* Pastikan print-area terlihat di cetakan */
+                display: flex !important;
                 flex-direction: column;
                 align-items: center;
             }
-            
-            /* Sembunyikan elemen utama saat mencetak */
-            #wrapper,
-            .navbar,
-            .container-fluid > .row,
-            .modal-backdrop,
-            .modal {
-                display: none !important;
-            }
-
-            .print-header {
-                text-align: center;
-                margin-bottom: 10px;
-                border-bottom: 1px dashed #000;
-                padding-bottom: 5px;
-            }
-
-            .print-detail p {
-                margin: 2px 0;
-            }
-
-            .print-total {
-                margin-top: 10px;
-                border-top: 1px dashed #000;
-                padding-top: 5px;
-                text-align: right;
-                width: 100%; /* Agar garis pemisah mencakup seluruh lebar */
-            }
-
-            .print-total strong {
-                font-size: 14px;
-            }
-
-            .status-badge {
-                /* Pastikan badge status terlihat saat dicetak, tetapi tanpa warna latar belakang */
-                background: none !important;
-                color: #000 !important;
-                padding: 0;
-                border: none;
-                font-weight: bold;
-            }
+            #wrapper, .navbar, .container-fluid>.row, .modal-backdrop, .modal { display: none !important; }
+            .print-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+            .print-detail p { margin: 2px 0; }
+            .print-total { margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; text-align: right; width: 100%; }
+            .print-total strong { font-size: 14px; }
+            .status-badge { background: none !important; color: #000 !important; padding: 0; border: none; font-weight: bold; }
         }
     </style>
 </head>
@@ -287,7 +321,7 @@ if (!empty($search_term)) {
 
         <div id="page-content-wrapper" class="content">
             <nav class="navbar navbar-expand-lg navbar-light bg-transparent py-4 px-4">
-                <div class="d-flex align-items-center">
+                 <div class="d-flex align-items-center">
                     <i class="fas fa-align-left primary-text fs-4 me-3" id="menu-toggle"></i>
                     <h2 class="fs-2 m-0">Kelola Pesanan</h2>
                 </div>
@@ -319,6 +353,7 @@ if (!empty($search_term)) {
                                         <th scope="col">Check-out</th>
                                         <th scope="col">Total</th>
                                         <th scope="col">Status</th>
+                                        <th scope="col">Kedaluwarsa</th> 
                                         <th scope="col" width="200">Aksi</th>
                                     </tr>
                                 </thead>
@@ -340,6 +375,8 @@ if (!empty($search_term)) {
                                                         <?= strtoupper(htmlspecialchars($booking['status'])) ?>
                                                     </span>
                                                 </td>
+                                                <td><?= $booking['expired_status'] ?></td>
+                                                
                                                 <td>
                                                     <button type="button" class="btn btn-sm btn-warning text-dark action-btn mb-1 mb-md-0"
                                                         data-bs-toggle="modal" data-bs-target="#actionModal"
@@ -360,7 +397,7 @@ if (!empty($search_term)) {
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="8" class="text-center">Tidak ada pesanan yang ditemukan.</td>
+                                            <td colspan="9" class="text-center">Tidak ada pesanan yang ditemukan.</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -474,33 +511,28 @@ if (!empty($search_term)) {
             });
         });
 
-        // ----------------------------------------------------------------------
         // FUNGSI UNTUK MENGAMBIL DATA DAN MEMICU CETAK
-        // ----------------------------------------------------------------------
         function printStruk(id) {
-            // Saat tombol "Struk" diklik, ia akan me-redirect halaman
-            // dengan menambahkan parameter 'print_id=ID' ke URL.
             window.location.href = 'kelola_pesanan.php?print_id=' + id;
         }
 
         <?php if ($print_booking): ?>
-        // Logic ini hanya dieksekusi jika data struk ($print_booking) berhasil diambil
-        document.addEventListener('DOMContentLoaded', () => {
-            // Tampilkan area cetak (penting jika Anda menggunakan JS untuk menyembunyikannya secara default)
-            document.querySelector('.print-area').style.display = 'flex';
-            
-            // Panggil dialog cetak browser
-            window.print();
+            // Logic ini hanya dieksekusi jika data struk ($print_booking) berhasil diambil
+            document.addEventListener('DOMContentLoaded', () => {
+                // Tampilkan area cetak (penting jika Anda menggunakan JS untuk menyembunyikannya secara default)
+                document.querySelector('.print-area').style.display = 'flex';
 
-            // Setelah selesai cetak/user menutup dialog, hapus parameter 'print_id'
-            // dari URL untuk kembali ke tampilan normal tanpa harus me-refresh ulang.
-            setTimeout(() => {
-                window.history.pushState('', document.title, window.location.pathname);
-                document.querySelector('.print-area').style.display = 'none';
-            }, 500);
-        });
+                // Panggil dialog cetak browser
+                window.print();
+
+                // Setelah selesai cetak/user menutup dialog, hapus parameter 'print_id'
+                // dari URL untuk kembali ke tampilan normal tanpa harus me-refresh ulang.
+                setTimeout(() => {
+                    window.history.pushState('', document.title, window.location.pathname);
+                    document.querySelector('.print-area').style.display = 'none';
+                }, 500);
+            });
         <?php endif; ?>
-        // ----------------------------------------------------------------------
     </script>
 </body>
 

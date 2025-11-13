@@ -10,37 +10,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 
 $message = '';
 
-// --- Logika CRUD Pengguna ---
-
-// 1. Tambah Pengguna
-if (isset($_POST['add_user'])) {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $phone = $_POST['phone'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $role = $_POST['role'];
-
-    // Cek duplikasi email
-    $check = $koneksi->prepare("SELECT id FROM users WHERE email = ?");
-    $check->bind_param("s", $email);
-    $check->execute();
-    $check->store_result();
-
-    if ($check->num_rows == 0) {
-        $stmt = $koneksi->prepare("INSERT INTO users (name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssss", $name, $email, $phone, $password, $role);
-        if ($stmt->execute()) {
-            $message = "<div class='alert alert-success'>Pengguna berhasil ditambahkan!</div>";
-        } else {
-            $message = "<div class='alert alert-danger'>Gagal menambahkan pengguna: " . $stmt->error . "</div>";
-        }
-        $stmt->close();
-    } else {
-        $message = "<div class='alert alert-warning'>Email sudah terdaftar!</div>";
-    }
-    $check->close();
-}
-
 // 2. Edit Pengguna (Blok ini sudah diperbaiki di respons sebelumnya, dipertahankan di sini)
 if (isset($_POST['edit_user'])) {
     $id = $_POST['user_id'];
@@ -48,18 +17,10 @@ if (isset($_POST['edit_user'])) {
     $email = $_POST['email'];
     $phone = $_POST['phone'];
     $role = $_POST['role'];
-    $password = $_POST['password'];
 
     $sql = "UPDATE users SET name=?, email=?, phone=?, role=?";
     $param_types = "ssss";
     $bind_params = [$name, $email, $phone, $role];
-
-    if (!empty($password)) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sql .= ", password=?";
-        $param_types .= "s";
-        $bind_params[] = $hashed_password;
-    }
 
     $sql .= " WHERE id=?";
     $param_types .= "i";
@@ -257,9 +218,6 @@ if (!empty($params)) {
                                     </optgroup>
                                 </select>
                             </form>
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                                <i class="fas fa-plus me-2"></i>Tambah Pengguna/Admin
-                            </button>
                         </div>
                     </div>
                     <div class="col-md-12">
@@ -323,48 +281,6 @@ if (!empty($params)) {
         </div>
     </div>
 
-    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form action="kelola_user.php" method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="addUserModalLabel">Tambah Pengguna Baru</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Nama</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Telepon</label>
-                            <input type="text" class="form-control" id="phone" name="phone">
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="role" class="form-label">Role</label>
-                            <select class="form-select" id="role" name="role" required>
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" name="add_user" class="btn btn-primary">Simpan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -386,10 +302,6 @@ if (!empty($params)) {
                         <div class="mb-3">
                             <label for="edit_phone" class="form-label">Telepon</label>
                             <input type="text" class="form-control" id="edit_phone" name="phone">
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_password" class="form-label">Password (Kosongkan jika tidak ingin diubah)</label>
-                            <input type="password" class="form-control" id="edit_password" name="password">
                         </div>
                         <div class="mb-3">
                             <label for="edit_role" class="form-label">Role</label>

@@ -15,7 +15,7 @@ $year = date('Y');
 
 for ($i = 1; $i <= 12; $i++) {
     $month = str_pad($i, 2, '0', STR_PAD_LEFT);
-    
+
     // Jumlah Pesanan
     $query_count = "SELECT COUNT(*) as total FROM bookings WHERE MONTH(created_at) = '$month' AND YEAR(created_at) = '$year' AND status IN ('confirmed', 'checked_in', 'checked_out', 'paid')";
     $monthly_bookings_data[] = $koneksi->query($query_count)->fetch_assoc()['total'];
@@ -62,6 +62,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -70,6 +71,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
 </head>
+
 <body>
     <div class="d-flex" id="wrapper">
         <?php include 'sidebar.php'; ?>
@@ -84,6 +86,10 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
 
             <div class="container-fluid px-4">
                 <div class="row my-5">
+                    <div class="col-md-4 mt-2 mb-2">
+                        <a href="laporan_keuangan.php" type="button" class="btn btn-success w-50"><i class="fa-solid fa-money-bill-trend-up me-2"></i>laporan keuangan</a>
+                    </div>
+
                     <div class="col-md-12">
                         <div class="card shadow-sm">
                             <div class="card-header bg-primary text-white">
@@ -133,49 +139,49 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                                 </form>
 
                                 <?php if (!empty($stats_result)): ?>
-                                <h5 class="mt-4">Ringkasan Periode <?= date('d M Y', strtotime($start_date)) ?> s/d <?= date('d M Y', strtotime($end_date)) ?></h5>
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light border rounded text-center">
-                                            <h4 class="mb-0"><?= $total_booking_count ?></h4>
-                                            <small class="text-muted">Total Pesanan Sukses</small>
+                                    <h5 class="mt-4">Ringkasan Periode <?= date('d M Y', strtotime($start_date)) ?> s/d <?= date('d M Y', strtotime($end_date)) ?></h5>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-4">
+                                            <div class="p-3 bg-light border rounded text-center">
+                                                <h4 class="mb-0"><?= $total_booking_count ?></h4>
+                                                <small class="text-muted">Total Pesanan Sukses</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="p-3 bg-light border rounded text-center">
+                                                <h4 class="mb-0">Rp <?= number_format($total_revenue_sum, 0, ',', '.') ?></h4>
+                                                <small class="text-muted">Total Pendapatan</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="p-3 bg-light border rounded text-center">
+                                                <h4 class="mb-0"><?= $total_nights_sum ?></h4>
+                                                <small class="text-muted">Total Malam Terjual</small>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light border rounded text-center">
-                                            <h4 class="mb-0">Rp <?= number_format($total_revenue_sum, 0, ',', '.') ?></h4>
-                                            <small class="text-muted">Total Pendapatan</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light border rounded text-center">
-                                            <h4 class="mb-0"><?= $total_nights_sum ?></h4>
-                                            <small class="text-muted">Total Malam Terjual</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-striped">
-                                        <thead class="table-dark">
-                                            <tr>
-                                                <th>Tipe Kamar</th>
-                                                <th>Jml. Pesanan</th>
-                                                <th>Jml. Malam Terjual</th>
-                                                <th>Pendapatan (Rp)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($stats_result as $stat): ?>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped">
+                                            <thead class="table-dark">
                                                 <tr>
-                                                    <td><?= htmlspecialchars($stat['room_type_name']) ?></td>
-                                                    <td><?= $stat['total_bookings'] ?></td>
-                                                    <td><?= $stat['total_nights'] ?></td>
-                                                    <td><?= number_format($stat['total_revenue'], 0, ',', '.') ?></td>
+                                                    <th>Tipe Kamar</th>
+                                                    <th>Jml. Pesanan</th>
+                                                    <th>Jml. Malam Terjual</th>
+                                                    <th>Pendapatan (Rp)</th>
                                                 </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($stats_result as $stat): ?>
+                                                    <tr>
+                                                        <td><?= htmlspecialchars($stat['room_type_name']) ?></td>
+                                                        <td><?= $stat['total_bookings'] ?></td>
+                                                        <td><?= $stat['total_nights'] ?></td>
+                                                        <td><?= number_format($stat['total_revenue'], 0, ',', '.') ?></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 <?php elseif (isset($_GET['start_date'])): ?>
                                     <div class="alert alert-warning mt-4">Tidak ada data pesanan sukses untuk periode ini.</div>
                                 <?php endif; ?>
@@ -195,7 +201,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
         var el = document.getElementById("wrapper");
         var toggleButton = document.getElementById("menu-toggle");
 
-        toggleButton.onclick = function () {
+        toggleButton.onclick = function() {
             el.classList.toggle("toggled");
         };
 
@@ -216,7 +222,11 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                 }]
             },
             options: {
-                scales: { y: { beginAtZero: true } }
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
             }
         });
 
@@ -237,9 +247,19 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                 }]
             },
             options: {
-                scales: { y: { beginAtZero: true, ticks: { callback: function(value, index, values) { return 'Rp ' + value.toLocaleString('id-ID'); } } } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value, index, values) {
+                                return 'Rp ' + value.toLocaleString('id-ID');
+                            }
+                        }
+                    }
+                }
             }
         });
     </script>
 </body>
+
 </html>

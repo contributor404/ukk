@@ -172,13 +172,13 @@ include 'bootstrap.php'
                                 icons += `<span class="me-3"><i class="fas ${icon} me-1"></i> ${facility}</span>`;
                             });
 
-                            room.image = room.image ? room.image : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
+                            room.room_image = room.room_image ? "./uploads/kamar/" + room.room_image : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
 
                             // Susun card kamar
                             const html = `
                         <div class="col-md-4 mb-4">
                             <div class="card room-card shadow">
-                                <img src="${room.image}" class="card-img-top room-img" alt="${room.name}">
+                                <img src="${room.room_image}" class="card-img-top room-img" alt="${room.name}">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h5 class="card-title mb-0">${room.name}</h5>

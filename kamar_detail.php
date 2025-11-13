@@ -140,7 +140,7 @@ $facilities = explode(",", $room['facilities']);
         <div class="row">
             <!-- Room Images -->
             <div class="col-lg-8 mb-4">
-                <img src="<?= !empty($room['room_image']) ? $room['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>"
+                <img src="<?= !empty($room['room_image']) ? "./uploads/kamar/" . (String)$room['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>"
                     class="img-fluid room-image w-100 mb-4" alt="<?= $room['name'] ?>">
 
                 <div class="row">

@@ -171,7 +171,7 @@ include 'bootstrap.php';
 
                             // Gambar default
                             const image = row.room_image && row.room_image.trim() !== "" ?
-                                row.room_image :
+                                "./uploads/kamar/" + row.room_image :
                                 "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
 
                             // Bangun HTML card
