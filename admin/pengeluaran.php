@@ -75,7 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['tambah_pengeluaran']))
 <body class="bg-light">
     <?php include "sidebar.php" ?>
 
-    <div class="container mt-5">
+    <div class="mt-5 content">
         <div class="row justify-content-center">
             <div class="col-lg-8 col-md-10">
                 <div class="card shadow-lg border-0">

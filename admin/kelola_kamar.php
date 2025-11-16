@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 }
 
 $message = '';
-$upload_dir = '../uploads/kamar/'; // Pastikan folder ini ada dan writable
+$upload_dir = '../uploads/kamar/';
 
 // Fungsi untuk Ambil Semua Tipe Kamar (Tidak Berubah)
 $room_types_result = $koneksi->query("SELECT * FROM room_types");

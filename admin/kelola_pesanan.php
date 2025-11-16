@@ -467,7 +467,7 @@ if (!empty($bookings)) {
                 <p>-----------------------------------</p>
                 <p>Harga/Malam: Rp <?= $print_booking['formatted_price_per_night'] ?></p>
                 <p>Total Harga: Rp <?= $print_booking['formatted_total_price'] ?></p>
-                <p>Status Pembayaran: <?= $print_booking['payment_status'] ?></p>
+                <p>Status Pembayaran: <?= $print_booking['payment_status'] == "PAID" ? "Sudah dibayar" : $print_booking['payment_status'] ?></p>
             </div>
 
             <div class="print-total">

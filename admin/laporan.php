@@ -87,7 +87,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
             <div class="container-fluid px-4">
                 <div class="row my-5">
                     <div class="col-md-4 mt-2 mb-2">
-                        <a href="laporan_keuangan.php" type="button" class="btn btn-success w-50"><i class="fa-solid fa-money-bill-trend-up me-2"></i>laporan keuangan</a>
+                        <a href="laporan_keuangan.php" type="button" class="btn btn-success"><i class="fa-solid fa-money-bill-trend-up me-2"></i>laporan keuangan</a>
                     </div>
 
                     <div class="col-md-12">

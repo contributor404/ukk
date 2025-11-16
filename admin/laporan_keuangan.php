@@ -175,17 +175,24 @@ function formatRupiah($amount)
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
     <style>
-        /* CSS untuk tampilan cetak */
+        .text-print {
+            color: white;
+        }
+
         @media print {
             .no-print {
                 display: none !important;
+            }
+
+            .text-print {
+                color: black;
             }
 
             body {
                 font-size: 10pt;
                 margin: 0;
                 padding: 0;
-                color: #000;
+                color: #000 !important;
             }
 
             .container-print {
@@ -207,7 +214,6 @@ function formatRupiah($amount)
                 margin-bottom: 15px;
             }
 
-            /* Styling mirip struk untuk ringkasan */
             .summary-table {
                 width: 100%;
                 margin-bottom: 20px;
@@ -222,17 +228,28 @@ function formatRupiah($amount)
             .text-end {
                 text-align: right;
             }
+
+            #print-container {
+                display: none;
+            }
         }
     </style>
 </head>
 
 <body class="bg-light">
-    <?php include "sidebar.php" ?>
+    <div id="print-container">
+        <?php include "sidebar.php" ?>
+    </div>
 
-    <div class="container my-5 container-print">
+    <div class="container-print content">
+        <nav class="navbar navbar-expand-lg navbar-light bg-transparent px-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-align-left primary-text fs-4 me-3" id="menu-toggle"></i>
+                <h2 class="fs-2 m-0">Laporan & Statistik</h2>
+            </div>
+        </nav>
 
-        <h2 class="mb-3 no-print">Laporan Keuangan Hotel</h2>
-        <p class="lead text-muted no-print"><?= $filter_display ?></p>
+        <p class="lead text-muted no-print mt-5"><?= $filter_display ?></p>
 
         <div class="card shadow-sm mb-4 p-3 no-print">
             <h5 class="card-title mb-3">Filter Laporan</h5>
@@ -275,7 +292,7 @@ function formatRupiah($amount)
         <div class="row mb-4">
 
             <div class="col-md-4 mb-3">
-                <div class="card bg-success text-white shadow">
+                <div class="card bg-success text-print shadow">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -289,7 +306,7 @@ function formatRupiah($amount)
             </div>
 
             <div class="col-md-4 mb-3">
-                <div class="card bg-danger text-white shadow">
+                <div class="card bg-danger text-print shadow">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -303,7 +320,7 @@ function formatRupiah($amount)
             </div>
 
             <div class="col-md-4 mb-3">
-                <?php $laba_class = $net_profit >= 0 ? 'bg-primary text-white' : 'bg-warning text-dark'; ?>
+                <?php $laba_class = $net_profit >= 0 ? 'bg-primary text-print' : 'bg-warning text-print'; ?>
                 <div class="card <?= $laba_class ?> shadow">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
