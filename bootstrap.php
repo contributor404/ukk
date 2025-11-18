@@ -21,7 +21,7 @@ if (isset($_SERVER["PHP_SELF"]) && !(str_contains($_SERVER["PHP_SELF"], "login.p
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="index.php">Hotel Booking</a>
+            <a class="navbar-brand" href="index.php">LuxStay</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>

@@ -71,7 +71,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Booking - Hotel Booking</title>
+    <title>Detail Booking - LuxStay</title>
     <style>
         /* CSS Utama */
         .print-area {
@@ -329,7 +329,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
 
     <div class="print-area text-center" style="flex-direction: column; align-items: center;">
         <div class="print-header">
-            <h3>Hotel Booking</h3>
+            <h3>LuxStay</h3>
             <p>Jl. Hotel Indah No. 123</p>
             <p>(021) 1234-5678</p>
         </div>
@@ -364,7 +364,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Hotel Booking</h5>
+                    <h5>LuxStay</h5>
                     <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
                 </div>
                 <div class="col-md-4 mb-4 mb-md-0">
@@ -385,7 +385,7 @@ $payment_status = isset($status_labels[$payment_status_raw]) ? $status_labels[$p
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2023 LuxStay. All rights reserved.</p>
             </div>
         </div>
     </footer>

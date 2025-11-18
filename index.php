@@ -7,7 +7,7 @@ include 'bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Booking - Temukan Kamar Terbaik</title>
+    <title>LuxStay - Temukan Kamar Terbaik</title>
     <!-- Custom CSS -->
     <style>
         .hero-section {
@@ -67,7 +67,7 @@ include 'bootstrap.php';
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Hotel Booking</h5>
+                    <h5>LuxStay</h5>
                     <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
                 </div>
                 <div class="col-md-4 mb-4 mb-md-0">
@@ -88,7 +88,7 @@ include 'bootstrap.php';
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2023 LuxStay. All rights reserved.</p>
             </div>
         </div>
     </footer>

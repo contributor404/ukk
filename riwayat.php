@@ -7,7 +7,7 @@ include 'bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riwayat Pemesanan - Hotel Booking</title>
+    <title>Riwayat Pemesanan - LuxStay</title>
     <style>
         .page-header {
             background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg');
@@ -101,7 +101,7 @@ include 'bootstrap.php';
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Hotel Booking</h5>
+                    <h5>LuxStay</h5>
                     <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
                 </div>
                 <div class="col-md-4 mb-4 mb-md-0">
@@ -122,7 +122,7 @@ include 'bootstrap.php';
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2030 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2030 LuxStay. All rights reserved.</p>
             </div>
         </div>
     </footer>

@@ -36,6 +36,12 @@ if ($filter_mode == 'day' && isset($_GET['date_filter']) && !empty($_GET['date_f
     $filter_start = $start_of_month->format('Y-m-d H:i:s');
     $filter_end = $end_of_month->format('Y-m-d H:i:s');
     $filter_display = 'Laporan Bulan: ' . $start_of_month->format('F Y');
+} elseif ($filter_mode == 'year' && isset($_GET['year_filter']) && !empty($_GET['year_filter'])) {
+    // Filter per Tahun (BARU)
+    $year = $_GET['year_filter']; // Format YYYY
+    $filter_start = $year . '-01-01 00:00:00';
+    $filter_end = $year . '-12-31 23:59:59';
+    $filter_display = 'Laporan Tahun: ' . $year;
 } else {
     // Default: Bulan ini
     $filter_mode = 'month';
@@ -55,6 +61,7 @@ if ($filter_mode == 'day' && isset($_GET['date_filter']) && !empty($_GET['date_f
  */
 function getTotalRevenue($koneksi, $start, $end)
 {
+    // Menggunakan created_at untuk pendapatan
     $query = "
         SELECT SUM(total_price) as total 
         FROM bookings 
@@ -77,14 +84,18 @@ function getTotalRevenue($koneksi, $start, $end)
  */
 function getTotalExpenses($koneksi, $start, $end)
 {
+    // Menggunakan tanggal untuk pengeluaran (hanya tanggal, bukan timestamp)
+    $start_date_only = date('Y-m-d', strtotime($start));
+    $end_date_only = date('Y-m-d', strtotime($end));
+
     $query = "
         SELECT SUM(jumlah) as total 
         FROM pengeluaran 
-        WHERE tanggal BETWEEN DATE(?) AND DATE(?)
+        WHERE tanggal BETWEEN ? AND ?
     ";
 
     if ($stmt = $koneksi->prepare($query)) {
-        $stmt->bind_param("ss", $start, $end);
+        $stmt->bind_param("ss", $start_date_only, $end_date_only);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         $stmt->close();
@@ -128,18 +139,21 @@ function getRevenueHistory($koneksi, $start, $end)
  */
 function getExpenseHistory($koneksi, $start, $end)
 {
+    $start_date_only = date('Y-m-d', strtotime($start));
+    $end_date_only = date('Y-m-d', strtotime($end));
+
     $query = "
         SELECT 
             p.tanggal, p.keterangan, p.jumlah, p.kategori,
             u.name as user_id_name
         FROM pengeluaran p
         JOIN users u ON p.user_id = u.id
-        WHERE p.tanggal BETWEEN DATE(?) AND DATE(?)
+        WHERE p.tanggal BETWEEN ? AND ?
         ORDER BY p.tanggal DESC
     ";
 
     if ($stmt = $koneksi->prepare($query)) {
-        $stmt->bind_param("ss", $start, $end);
+        $stmt->bind_param("ss", $start_date_only, $end_date_only);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
@@ -160,6 +174,10 @@ $expense_history = getExpenseHistory($koneksi, $filter_start, $filter_end);
 // Helper untuk format Rupiah
 function formatRupiah($amount)
 {
+    // Pastikan angka adalah numerik sebelum format
+    if (!is_numeric($amount)) {
+        $amount = 0;
+    }
     return 'Rp ' . number_format($amount, 2, ',', '.');
 }
 ?>
@@ -232,6 +250,23 @@ function formatRupiah($amount)
             #print-container {
                 display: none;
             }
+
+            /* Memastikan warna latar belakang card untuk ringkasan tetap terlihat di cetak */
+            .card.bg-success,
+            .card.bg-danger,
+            .card.bg-primary {
+                background-color: #f0f0f0 !important;
+                /* Warna terang untuk latar belakang */
+                border: 1px solid #ccc;
+                print-color-adjust: exact;
+            }
+
+            .card.bg-warning {
+                background-color: #fff3cd !important;
+                border: 1px solid #ccc;
+                print-color-adjust: exact;
+            }
+
         }
     </style>
 </head>
@@ -242,10 +277,10 @@ function formatRupiah($amount)
     </div>
 
     <div class="container-print content">
-        <nav class="navbar navbar-expand-lg navbar-light bg-transparent px-4">
+        <nav class="navbar navbar-expand-lg navbar-light bg-transparent px-4 no-print">
             <div class="d-flex align-items-center">
                 <i class="fas fa-align-left primary-text fs-4 me-3" id="menu-toggle"></i>
-                <h2 class="fs-2 m-0">Laporan & Statistik</h2>
+                <h2 class="fs-2 m-0">Laporan Keuangan</h2>
             </div>
         </nav>
 
@@ -258,6 +293,7 @@ function formatRupiah($amount)
                     <label for="filter_mode" class="form-label">Mode Filter</label>
                     <select class="form-select" id="filter_mode" name="filter_mode" onchange="toggleFilterInputs(this.value)">
                         <option value="month" <?= $filter_mode == 'month' ? 'selected' : '' ?>>Bulan</option>
+                        <option value="year" <?= $filter_mode == 'year' ? 'selected' : '' ?>>Tahun</option>
                         <option value="day" <?= $filter_mode == 'day' ? 'selected' : '' ?>>Hari</option>
                     </select>
                 </div>
@@ -267,6 +303,11 @@ function formatRupiah($amount)
                         <label for="month_filter" class="form-label">Pilih Bulan</label>
                         <input type="month" class="form-control" id="month_filter" name="month_filter"
                             value="<?= $filter_mode == 'month' && isset($_GET['month_filter']) ? htmlspecialchars($_GET['month_filter']) : date('Y-m') ?>">
+                    </div>
+                    <div id="year_input" style="display: <?= $filter_mode == 'year' ? 'block' : 'none' ?>;">
+                        <label for="year_filter" class="form-label">Pilih Tahun</label>
+                        <input type="number" class="form-control" id="year_filter" name="year_filter" min="2000" max="<?= date('Y') ?>"
+                            value="<?= $filter_mode == 'year' && isset($_GET['year_filter']) ? htmlspecialchars($_GET['year_filter']) : date('Y') ?>">
                     </div>
                     <div id="day_input" style="display: <?= $filter_mode == 'day' ? 'block' : 'none' ?>;">
                         <label for="date_filter" class="form-label">Pilih Tanggal</label>
@@ -283,8 +324,8 @@ function formatRupiah($amount)
         </div>
 
         <div class="print-header d-none d-print-block">
-            <h3>LAPORAN KEUANGAN</h3>
-            <p style="margin: 0;"><?= $filter_display ?></p>
+            <h3>LAPORAN KEUANGAN HOTEL</h3>
+            <p style="margin: 0; font-weight: bold;"><?= $filter_display ?></p>
             <p style="font-size: 8pt;">Dicetak: <?= date('d/m/Y H:i:s') ?></p>
         </div>
 
@@ -376,7 +417,7 @@ function formatRupiah($amount)
                                     <?php if (!empty($revenue_history)): ?>
                                         <?php foreach ($revenue_history as $rev): ?>
                                             <tr>
-                                                <td><?= date('d/m/Y', strtotime($rev['created_at'])) ?></td>
+                                                <td><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></td>
                                                 <td><?= htmlspecialchars($rev['booking_code']) ?></td>
                                                 <td><?= htmlspecialchars($rev['room_number']) ?> (<?= htmlspecialchars($rev['room_type_name']) ?>)</td>
                                                 <td class="text-end"><?= formatRupiah($rev['total_price']) ?></td>
@@ -437,37 +478,64 @@ function formatRupiah($amount)
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Fungsi untuk menampilkan atau menyembunyikan input filter (Bulan atau Hari)
+        // Toggle Sidebar
+        var el = document.getElementById("wrapper");
+        var toggleButton = document.getElementById("menu-toggle");
+
+        if (toggleButton && el) {
+            toggleButton.onclick = function() {
+                el.classList.toggle("toggled");
+            };
+        }
+
+
+        // Fungsi untuk menampilkan atau menyembunyikan input filter (Bulan, Tahun, atau Hari)
         function toggleFilterInputs(mode) {
             const monthInput = document.getElementById('month_input');
+            const yearInput = document.getElementById('year_input');
             const dayInput = document.getElementById('day_input');
 
+            // Sembunyikan semua dulu
+            monthInput.style.display = 'none';
+            yearInput.style.display = 'none';
+            dayInput.style.display = 'none';
+
+            // Tampilkan yang sesuai mode
             if (mode === 'month') {
                 monthInput.style.display = 'block';
-                dayInput.style.display = 'none';
-            } else {
-                monthInput.style.display = 'none';
+            } else if (mode === 'year') {
+                yearInput.style.display = 'block';
+            } else if (mode === 'day') {
                 dayInput.style.display = 'block';
             }
         }
 
         // Panggil fungsi toggle saat halaman dimuat
         document.addEventListener('DOMContentLoaded', () => {
-            const mode = document.getElementById('filter_mode').value;
-            toggleFilterInputs(mode);
+            const modeSelect = document.getElementById('filter_mode');
+            if (modeSelect) {
+                toggleFilterInputs(modeSelect.value);
+            }
         });
 
         // Mengatasi masalah pengiriman form dengan input kosong
         document.querySelector('form').addEventListener('submit', function(e) {
             const mode = document.getElementById('filter_mode').value;
             const monthFilter = document.getElementById('month_filter');
+            const yearFilter = document.getElementById('year_filter');
             const dayFilter = document.getElementById('date_filter');
 
             // Hapus atribut 'name' dari input yang tidak digunakan agar tidak ikut terkirim
+            monthFilter.removeAttribute('name');
+            yearFilter.removeAttribute('name');
+            dayFilter.removeAttribute('name');
+
             if (mode === 'month') {
-                dayFilter.removeAttribute('name');
-            } else {
-                monthFilter.removeAttribute('name');
+                monthFilter.setAttribute('name', 'month_filter');
+            } else if (mode === 'year') {
+                yearFilter.setAttribute('name', 'year_filter');
+            } else if (mode === 'day') {
+                dayFilter.setAttribute('name', 'date_filter');
             }
         });
     </script>

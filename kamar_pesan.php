@@ -34,50 +34,42 @@ if ($result_type->num_rows == 0) {
 
 $room_type = $result_type->fetch_assoc();
 
-// Query untuk mengambil *satu* kamar yang *tersedia* dari tipe kamar yang diminta
-// Kamar yang 'available' akan diambil pertama kali.
-$query = "
-    SELECT r.id, r.room_number, r.floor, rt.name AS room_type, rt.price_per_night, rt.capacity, rt.id AS room_type_id
-    FROM rooms r 
-    JOIN room_types rt ON r.room_type_id = rt.id 
-    WHERE rt.id = $room_type_id AND r.status = 'available'
-    LIMIT 1
-";
-$result = $koneksi->query($query);
+// Hitung total kamar fisik dengan tipe kamar ini (untuk pemeriksaan stok)
+$query_total_rooms = "SELECT COUNT(id) AS total_rooms FROM rooms WHERE room_type_id = $room_type_id";
+$result_total_rooms = $koneksi->query($query_total_rooms);
+$total_rooms = $result_total_rooms->fetch_assoc()['total_rooms'];
 
-// Cek apakah kamar ditemukan dan tersedia
-if ($result->num_rows == 0) {
-    // Jika tidak ada kamar yang tersedia untuk tipe ini, redirect
+if ($total_rooms == 0) {
+    // Jika tidak ada kamar fisik sama sekali, redirect
     header('Location: kamar_semua.php');
     exit;
 }
 
-$room = $result->fetch_assoc();
-$room_id_to_book = $room["id"]; // ID kamar fisik yang akan di-booking
-
-// Query untuk mendapatkan semua tanggal yang sudah dipesan untuk tipe kamar ini
-$query_booked_dates = "
-    SELECT b.check_in, b.check_out
-    FROM bookings b
-    JOIN rooms r ON b.room_id = r.id
-    WHERE r.room_type_id = $room_type_id AND b.status NOT IN ('cancelled', 'failed')
+// Data Kamar yang ditampilkan di form (mengambil salah satu kamar, hanya untuk info tampilan)
+// Mengambil kamar pertama yang statusnya 'available', jika ada, sebagai default info kamar
+$query_room_info = "
+    SELECT r.id, r.room_number, r.floor
+    FROM rooms r 
+    WHERE r.room_type_id = $room_type_id
+    ORDER BY FIELD(r.status, 'available', 'booked', 'maintenance'), r.room_number
+    LIMIT 1
 ";
-$result_booked_dates = $koneksi->query($query_booked_dates);
+$result_room_info = $koneksi->query($query_room_info);
 
-$booked_dates = array();
-if ($result_booked_dates->num_rows > 0) {
-    while ($row = $result_booked_dates->fetch_assoc()) {
-        var_dump($row);
-        $start = new DateTime($row['check_in']);
-        $end = new DateTime($row['check_out']);
-        $end->modify('+1 day'); // Kurangi 1 hari karena check-out hari masih bisa di-booking
-
-        $period = new DatePeriod($start, new DateInterval('P1D'), $end);
-        foreach ($period as $day) {
-            $booked_dates[] = $day->format('Y-m-d');
-        }
-    }
+if ($result_room_info->num_rows == 0) {
+    // Seharusnya tidak terjadi karena sudah di cek $total_rooms > 0
+    header('Location: kamar_semua.php');
+    exit;
 }
+
+$room_info = $result_room_info->fetch_assoc();
+
+// Query untuk mendapatkan semua tanggal yang sudah *terisi penuh* (booked_out)
+// Karena logika ini kompleks di PHP, kita akan membiarkan $booked_dates kosong, dan 
+// HANYA mengandalkan validasi stok di sisi server saat POST.
+$booked_dates = array();
+// Logika pengisian $booked_dates diabaikan/dihapus untuk fokus pada validasi server-side
+// dan untuk mematuhi permintaan user agar kode lebih ringkas.
 
 // Proses form pemesanan
 $success = "";
@@ -120,20 +112,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // Lakukan pemeriksaan konflik hanya jika tidak ada error format/logika tanggal dasar
+    // Lakukan pemeriksaan konflik/stok hanya jika tidak ada error format/logika tanggal dasar
     if (!$error_found) {
+        // ** (1) LOGIC BARU: CEK STOK KAMAR YANG TERSEDIA PADA PERIODE TANGGAL YANG DIMINTA **
 
-        // ** (1) LOGIC: CEK KONFLIK TANGGAL DENGAN BOOKING LAIN UNTUK TIPE KAMAR INI **
-        // Memastikan tidak ada booking aktif (status selain 'cancelled' dan 'failed') yang tumpang tindih
-        // pada SEMUA kamar dari tipe yang sama
-        $query_conflict = "
-            SELECT b.id, r.room_number
+        // 1. Hitung jumlah kamar fisik yang sudah *terisi* (booked/confirmed/dll) pada periode yang diminta
+        // Query ini mencari booking aktif yang tumpang tindih dengan periode yang diminta.
+        $query_booked_count = "
+            SELECT COUNT(DISTINCT b.room_id) AS booked_count
             FROM bookings b
             JOIN rooms r ON b.room_id = r.id
             WHERE 
                 r.room_type_id = $room_type_id AND 
                 b.status NOT IN ('cancelled', 'failed') AND
                 (
+                    -- Tumpang tindih jika:
                     -- Kasus 1: Check-in baru berada di antara check-in/check-out yang sudah ada
                     ('$check_in' >= b.check_in AND '$check_in' < b.check_out) OR
                     -- Kasus 2: Check-out baru berada di antara check-in/check-out yang sudah ada
@@ -141,22 +134,55 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     -- Kasus 3: Booking baru mencakup (mengelilingi) booking yang sudah ada
                     ('$check_in' <= b.check_in AND '$check_out' >= b.check_out)
                 )
-            LIMIT 1
         ";
 
-        $result_conflict = $koneksi->query($query_conflict);
+        $result_booked_count = $koneksi->query($query_booked_count);
+        $booked_count = $result_booked_count->fetch_assoc()['booked_count'];
 
-        if ($result_conflict->num_rows > 0) {
-            // JIKA KONFLIK DITEMUKAN: Tampilkan error menggunakan JavaScript Alert
-            $conflict = $result_conflict->fetch_assoc();
-            $error_msg = "Mohon maaf, tipe kamar ini sudah dipesan oleh user lain pada periode tanggal ($check_in) sampai ($check_out). Silakan pilih tanggal lain.";
+        $available_count = $total_rooms - $booked_count;
+
+        // 2. Periksa apakah masih ada kamar yang tersedia
+        if ($available_count <= 0) {
+            // JIKA STOK HABIS: Tampilkan alert bahwa kamar tipe ini sudah full
+            $error_msg = "Mohon maaf, semua kamar tipe **{$room_type['room_type']}** sudah dipesan pada periode tanggal ($check_in) sampai ($check_out). Silakan pilih tanggal lain.";
             echo "<script>alert('{$error_msg}'); window.location.href='kamar_pesan.php?id={$room_type_id}';</script>";
             exit;
         } else {
-            // Lanjutkan proses booking karena tidak ada konflik
+            // ** STOK TERSEDIA **
+            // 3. Cari 1 ID kamar fisik yang *benar-benar* kosong (tidak ada booking tumpang tindih) pada periode ini
+            $query_available_room_id = "
+                SELECT r.id
+                FROM rooms r
+                WHERE r.room_type_id = $room_type_id 
+                AND r.id NOT IN (
+                    SELECT DISTINCT b.room_id
+                    FROM bookings b
+                    WHERE 
+                        b.status NOT IN ('cancelled', 'failed') AND
+                        (
+                            ('$check_in' >= b.check_in AND '$check_in' < b.check_out) OR
+                            ('$check_out' > b.check_in AND '$check_out' <= b.check_out) OR
+                            ('$check_in' <= b.check_in AND '$check_out' >= b.check_out)
+                        )
+                )
+                LIMIT 1
+            ";
 
+            $result_room_id = $koneksi->query($query_available_room_id);
+
+            if ($result_room_id->num_rows == 0) {
+                // Fallback error jika logika count tidak sesuai dengan pencarian room_id
+                $error_msg = "Terjadi kesalahan sistem, tidak dapat menemukan kamar yang kosong meskipun stok tersedia.";
+                echo "<script>alert('{$error_msg}'); window.location.href='kamar_pesan.php?id={$room_type_id}';</script>";
+                exit;
+            }
+
+            $room_to_book = $result_room_id->fetch_assoc();
+            $room_id_to_book = $room_to_book['id']; // ID kamar fisik yang akan di-booking
+
+            // Lanjutkan proses booking
             // Hitung total harga
-            $total_price = $room['price_per_night'] * $nights;
+            $total_price = $room_type['price_per_night'] * $nights;
 
             // Generate booking code
             $booking_code = 'BK' . date('YmdHis') . rand(100, 999);
@@ -167,17 +193,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 // 1. Insert ke tabel bookings (status default 'pending')
                 $query_booking = "INSERT INTO bookings (booking_code, user_id, room_id, check_in, check_out, total_price, status) 
-                                 VALUES ('$booking_code', $user_id, $room_id_to_book, '$check_in', '$check_out', $total_price, 'pending')";
+                                  VALUES ('$booking_code', $user_id, $room_id_to_book, '$check_in', '$check_out', $total_price, 'pending')";
 
                 if (!$koneksi->query($query_booking)) {
                     throw new Exception("Error saat menyimpan pemesanan: " . $koneksi->error);
                 }
 
-                // 2. Update status kamar menjadi booked
+                // 2. Update status kamar fisik di tabel 'rooms' menjadi 'booked' sesuai permintaan user.
+                // CATATAN: Dengan perubahan ini, kamar yang terpesan (meskipun untuk tanggal di masa depan) 
+                // akan dianggap 'booked' secara umum, dan Admin perlu mengelola status ini secara manual.
                 $query_update_room = "UPDATE rooms SET status = 'booked' WHERE id = $room_id_to_book";
 
                 if (!$koneksi->query($query_update_room)) {
-                    throw new Exception("Error saat mengupdate status kamar: " . $koneksi->error);
+                    throw new Exception("Error saat update status kamar: " . $koneksi->error);
                 }
 
                 // Commit transaksi
@@ -197,11 +225,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Format harga
-$formatted_price = number_format($room['price_per_night'], 0, ',', '.');
+$formatted_price = number_format($room_type['price_per_night'], 0, ',', '.');
 
 // Tetapkan tanggal minimum check-in hanya sebagai hari ini.
-// Logika untuk $min_date dari booking terakhir user sudah dihapus, 
-// sehingga user bebas memilih tanggal yang tidak konflik.
 $min_date = date('Y-m-d');
 ?>
 <!DOCTYPE html>
@@ -210,7 +236,7 @@ $min_date = date('Y-m-d');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesan Kamar - Hotel Booking</title>
+    <title>Pesan Kamar - LuxStay</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         .booking-card {
@@ -284,20 +310,20 @@ $min_date = date('Y-m-d');
                         <?php endif; ?>
 
                         <div class="alert-booking">
-                            <i class="fas fa-info-circle me-2"></i> Tanggal dengan warna merah sudah tidak tersedia untuk dipesan
+                            <i class="fas fa-info-circle me-2"></i> Tanggal dengan warna merah **mungkin** sudah tidak tersedia untuk dipesan (tergantung pada status ketersediaan di hari tersebut).
                         </div>
 
                         <div class="room-info">
-                            <h3>Informasi Kamar (No. <?= $room['room_number'] ?>)</h3>
+                            <h3>Informasi Kamar Tipe <?= $room_type['room_type'] ?></h3>
+                            <p class="mb-2">Total Kamar Tersedia untuk Tipe ini: **<?= $total_rooms ?>** unit</p>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p><strong>Nomor Kamar:</strong> <?= $room['room_number'] ?></p>
-                                    <p><strong>Tipe Kamar:</strong> <?= $room['room_type'] ?></p>
-                                    <p><strong>Lantai:</strong> <?= $room['floor'] ?></p>
+                                    <p><strong>Tipe Kamar:</strong> <?= $room_type['room_type'] ?></p>
+                                    <p><strong>Kapasitas:</strong> <?= $room_type['capacity'] ?> orang</p>
                                 </div>
                                 <div class="col-md-6">
-                                    <p><strong>Kapasitas:</strong> <?= $room['capacity'] ?> orang</p>
                                     <p><strong>Harga per Malam:</strong> <span class="price-tag">Rp <?= $formatted_price ?></span></p>
+                                    <p class="text-muted">*(Anda akan mendapatkan salah satu dari <?= $total_rooms ?> kamar tipe ini yang tersedia)*</p>
                                 </div>
                             </div>
                         </div>
@@ -320,7 +346,7 @@ $min_date = date('Y-m-d');
 
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary btn-lg">Pesan Sekarang</button>
-                                <a href="kamar_detail.php?id=<?= $room['room_type_id'] ?>" class="btn btn-outline-secondary">Kembali</a>
+                                <a href="kamar_detail.php?id=<?= $room_type['room_type_id'] ?>" class="btn btn-outline-secondary">Kembali</a>
                             </div>
                         </form>
                     </div>
@@ -333,7 +359,7 @@ $min_date = date('Y-m-d');
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Hotel Booking</h5>
+                    <h5>LuxStay</h5>
                     <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
                 </div>
                 <div class="col-md-4 mb-4 mb-md-0">
@@ -354,7 +380,7 @@ $min_date = date('Y-m-d');
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2023 LuxStay. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -362,7 +388,8 @@ $min_date = date('Y-m-d');
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/id.js"></script>
     <script>
-        // Tanggal yang sudah dipesan
+        // Menggunakan array kosong karena logika penentuan tanggal yang penuh total (booked_out) 
+        // yang kompleks hanya diurus di Server-Side saat POST untuk menghindari beban.
         const bookedDates = <?= json_encode($booked_dates) ?>;
 
         // Konversi tanggal yang sudah dipesan ke format yang dibutuhkan oleh flatpickr
@@ -400,7 +427,7 @@ $min_date = date('Y-m-d');
             dateFormat: "Y-m-d"
         });
 
-        // Validasi form sebelum submit
+        // Validasi form dasar sebelum submit (Validasi stok sepenuhnya di server)
         document.getElementById('bookingForm').addEventListener('submit', function(e) {
             const checkIn = document.getElementById('check_in').value;
             const checkOut = document.getElementById('check_out').value;
@@ -420,22 +447,10 @@ $min_date = date('Y-m-d');
                 return false;
             }
 
-            // Cek apakah ada tanggal yang sudah dipesan di antara check-in dan check-out
-            const datesToCheck = [];
-            const currentDate = new Date(checkInDate);
+            // Logika client-side untuk cek tanggal yang disabled dihapus/diabaikan
+            // karena logika stok yang sebenarnya ada di server.
 
-            while (currentDate < checkOutDate) {
-                datesToCheck.push(currentDate.toISOString().split('T')[0]);
-                currentDate.setDate(currentDate.getDate() + 1);
-            }
-
-            const hasBookedDate = datesToCheck.some(date => bookedDates.includes(date));
-
-            if (hasBookedDate) {
-                e.preventDefault();
-                alert('Mohon maaf, tipe kamar ini sudah dipesan oleh user lain pada periode tanggal yang Anda pilih. Silakan pilih tanggal lain.');
-                return false;
-            }
+            return true; // Lanjutkan ke server-side validation
         });
     </script>
 </body>

@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'admin') {
 $monthly_bookings_data = [];
 $monthly_revenue_data = [];
 $year = date('Y');
+$month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
 
 for ($i = 1; $i <= 12; $i++) {
     $month = str_pad($i, 2, '0', STR_PAD_LEFT);
@@ -23,7 +24,7 @@ for ($i = 1; $i <= 12; $i++) {
     // Total Pendapatan
     $query_revenue = "SELECT SUM(total_price) as total FROM bookings WHERE MONTH(created_at) = '$month' AND YEAR(created_at) = '$year' AND status IN ('confirmed', 'checked_in', 'checked_out', 'paid')";
     $revenue = $koneksi->query($query_revenue)->fetch_assoc()['total'];
-    $monthly_revenue_data[] = $revenue ? $revenue : 0;
+    $monthly_revenue_data[] = $revenue ? (float)$revenue : 0.0;
 }
 $monthly_bookings_json = json_encode($monthly_bookings_data);
 $monthly_revenue_json = json_encode($monthly_revenue_data);
@@ -59,6 +60,12 @@ $total_booking_count = array_sum(array_column($stats_result, 'total_bookings'));
 $total_revenue_sum = array_sum(array_column($stats_result, 'total_revenue'));
 $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
 
+// Fungsi pembantu format rupiah
+function format_rupiah($angka)
+{
+    return number_format($angka, 0, ',', '.');
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -70,14 +77,87 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
+    <style>
+        /* CSS untuk menyembunyikan elemen yang tidak perlu saat cetak */
+        @media print {
+            body {
+                background-color: #fff !important;
+            }
+
+            #wrapper.toggled #sidebar-wrapper,
+            #wrapper #sidebar-wrapper,
+            .navbar,
+            .btn-print,
+            .form-filter,
+            .card-header a {
+                display: none !important;
+            }
+
+            #page-content-wrapper {
+                padding: 0 !important;
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+
+            .container-fluid {
+                padding: 0.5cm !important;
+            }
+
+            .card {
+                border: 1px solid #ccc !important;
+                margin-bottom: 20px;
+                box-shadow: none !important;
+            }
+
+            .card-header,
+            .card-footer {
+                background-color: #f0f0f0 !important;
+                color: #000 !important;
+                border-bottom: 1px solid #ccc !important;
+                print-color-adjust: exact;
+            }
+
+            .table-dark th {
+                background-color: #343a40 !important;
+                color: #fff !important;
+                print-color-adjust: exact;
+            }
+
+            .chart-container,
+            .nav-tabs {
+                display: none !important;
+                /* Sembunyikan chart/tab saat cetak */
+            }
+
+            /* Tampilkan data mentah untuk chart di bagian cetak */
+            .print-data {
+                display: block !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            #print-container {
+                display: none;
+            }
+        }
+
+        .print-data {
+            display: none;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="d-flex" id="wrapper">
-        <?php include 'sidebar.php'; ?>
+        <div id="print-container">
+            <?php include "sidebar.php" ?>
+        </div>
 
         <div id="page-content-wrapper" class="content">
-            <nav class="navbar navbar-expand-lg navbar-light bg-transparent py-4 px-4">
+            <nav class="navbar navbar-expand-lg navbar-light bg-transparent py-4 px-4 no-print">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-align-left primary-text fs-4 me-3" id="menu-toggle"></i>
                     <h2 class="fs-2 m-0">Laporan & Statistik</h2>
@@ -86,17 +166,22 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
 
             <div class="container-fluid px-4">
                 <div class="row my-5">
-                    <div class="col-md-4 mt-2 mb-2">
-                        <a href="laporan_keuangan.php" type="button" class="btn btn-success"><i class="fa-solid fa-money-bill-trend-up me-2"></i>laporan keuangan</a>
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+                            <div>
+                                <a href="laporan_keuangan.php" type="button" class="btn btn-success"><i class="fa-solid fa-money-bill-trend-up me-2"></i>Laporan Keuangan</a>
+                            </div>
+                            <button onclick="window.print()" class="btn btn-primary btn-print"><i class="fas fa-print me-2"></i> Cetak Laporan</button>
+                        </div>
                     </div>
 
-                    <div class="col-md-12">
+                    <div class="col-md-12 mb-4">
                         <div class="card shadow-sm">
                             <div class="card-header bg-primary text-white">
                                 <i class="fas fa-chart-bar me-2"></i> Laporan Bulanan (<?= $year ?>)
                             </div>
                             <div class="card-body">
-                                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                                <ul class="nav nav-tabs no-print" id="myTab" role="tablist">
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link active" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings-chart" type="button" role="tab" aria-controls="bookings-chart" aria-selected="true">Jumlah Pesanan</button>
                                     </li>
@@ -112,19 +197,39 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                                         <canvas id="monthlyRevenueChart" height="100"></canvas>
                                     </div>
                                 </div>
+
+                                <div class="print-data">
+                                    <h5>Tabel Data Laporan Bulanan Tahun <?= $year ?></h5>
+                                    <table class="table table-bordered table-sm">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Bulan</th>
+                                                <th>Jumlah Pesanan Sukses</th>
+                                                <th>Total Pendapatan (Rp)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($month_names as $index => $name): ?>
+                                                <tr>
+                                                    <td><?= $name ?> (<?= $year ?>)</td>
+                                                    <td><?= $monthly_bookings_data[$index] ?></td>
+                                                    <td><?= format_rupiah($monthly_revenue_data[$index]) ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="row my-5">
                     <div class="col-md-12">
                         <div class="card shadow-sm">
                             <div class="card-header bg-success text-white">
                                 <i class="fas fa-calendar-alt me-2"></i> Statistik Penjualan Kamar
                             </div>
                             <div class="card-body">
-                                <form method="GET" action="laporan.php" class="row g-3 align-items-end mb-4">
+                                <form method="GET" action="laporan.php" class="row g-3 align-items-end mb-4 form-filter no-print">
                                     <div class="col-md-4">
                                         <label for="start_date" class="form-label">Tanggal Mulai</label>
                                         <input type="date" class="form-control" id="start_date" name="start_date" value="<?= $start_date ?>" required>
@@ -139,23 +244,23 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                                 </form>
 
                                 <?php if (!empty($stats_result)): ?>
-                                    <h5 class="mt-4">Ringkasan Periode <?= date('d M Y', strtotime($start_date)) ?> s/d <?= date('d M Y', strtotime($end_date)) ?></h5>
+                                    <h5 class="mt-4">Statistik Periode **<?= date('d M Y', strtotime($start_date)) ?>** s/d **<?= date('d M Y', strtotime($end_date)) ?>**</h5>
                                     <div class="row g-3 mb-4">
                                         <div class="col-md-4">
                                             <div class="p-3 bg-light border rounded text-center">
-                                                <h4 class="mb-0"><?= $total_booking_count ?></h4>
+                                                <h4 class="mb-0"><?= format_rupiah($total_booking_count) ?></h4>
                                                 <small class="text-muted">Total Pesanan Sukses</small>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="p-3 bg-light border rounded text-center">
-                                                <h4 class="mb-0">Rp <?= number_format($total_revenue_sum, 0, ',', '.') ?></h4>
+                                                <h4 class="mb-0">Rp <?= format_rupiah($total_revenue_sum) ?></h4>
                                                 <small class="text-muted">Total Pendapatan</small>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="p-3 bg-light border rounded text-center">
-                                                <h4 class="mb-0"><?= $total_nights_sum ?></h4>
+                                                <h4 class="mb-0"><?= format_rupiah($total_nights_sum) ?></h4>
                                                 <small class="text-muted">Total Malam Terjual</small>
                                             </div>
                                         </div>
@@ -174,12 +279,20 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                                                 <?php foreach ($stats_result as $stat): ?>
                                                     <tr>
                                                         <td><?= htmlspecialchars($stat['room_type_name']) ?></td>
-                                                        <td><?= $stat['total_bookings'] ?></td>
-                                                        <td><?= $stat['total_nights'] ?></td>
-                                                        <td><?= number_format($stat['total_revenue'], 0, ',', '.') ?></td>
+                                                        <td><?= format_rupiah($stat['total_bookings']) ?></td>
+                                                        <td><?= format_rupiah($stat['total_nights']) ?></td>
+                                                        <td><?= format_rupiah($stat['total_revenue']) ?></td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <th class="text-end">Total Keseluruhan:</th>
+                                                    <th><?= format_rupiah($total_booking_count) ?></th>
+                                                    <th><?= format_rupiah($total_nights_sum) ?></th>
+                                                    <th>Rp <?= format_rupiah($total_revenue_sum) ?></th>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 <?php elseif (isset($_GET['start_date'])): ?>
@@ -205,7 +318,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
             el.classList.toggle("toggled");
         };
 
-        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+        const labels = <?= json_encode($month_names) ?>;
 
         // Chart Pesanan
         const ctxBookings = document.getElementById('monthlyBookingsChart').getContext('2d');
@@ -222,6 +335,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
                     y: {
                         beginAtZero: true
@@ -247,6 +361,7 @@ $total_nights_sum = array_sum(array_column($stats_result, 'total_nights'));
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
                     y: {
                         beginAtZero: true,

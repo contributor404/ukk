@@ -183,7 +183,6 @@ if ($stmt_delete) {
     $stmt_delete->close();
 }
 
-
 // --- Logika Pencarian (Tidak Berubah) ---
 if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
     $search_term = trim($_GET['search']);
@@ -427,12 +426,11 @@ if (!empty($bookings)) {
                         <div class="mb-3">
                             <label for="new_status" class="form-label">Pilih Status Baru</label>
                             <select class="form-select" id="new_status" name="new_status" required>
-                                <option value="pending">pending (Menunggu Pembayaran/Konfirmasi)</option>
-                                <option value="paid">paid (Pembayaran Diterima)</option>
+                                <option value="pending">pending (Menunggu Pembayaran)</option>
+                                <option value="paid">paid (Pembayaran Langsung)</option>
                                 <option value="checked_in">checked_in (Sudah Check-in)</option>
                                 <option value="checked_out">checked_out (Sudah Check-out)</option>
                                 <option value="cancelled">cancelled (Dibatalkan)</option>
-                                <option value="failed">failed (Pembayaran Gagal)</option>
                             </select>
                         </div>
                     </div>
@@ -449,7 +447,7 @@ if (!empty($bookings)) {
     <div class="print-area text-center" style="flex-direction: column; align-items: center; display: none;">
         <?php if ($print_booking): ?>
             <div class="print-header">
-                <h3>Hotel Booking</h3>
+                <h3>LuxStay</h3>
                 <p>Jl. Hotel Indah No. 123</p>
                 <p>(021) 1234-5678</p>
             </div>

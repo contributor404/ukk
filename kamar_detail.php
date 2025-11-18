@@ -108,7 +108,7 @@ $facilities = explode(",", $room['facilities']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $room['name'] ?> - Hotel Booking</title>
+    <title><?= $room['name'] ?> - LuxStay</title>
     <style>
         .main-room-image {
             height: 400px;
@@ -280,7 +280,7 @@ $facilities = explode(",", $room['facilities']);
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4 mb-md-0">
-                    <h5>Hotel Booking</h5>
+                    <h5>LuxStay</h5>
                     <p>Temukan pengalaman menginap terbaik dengan harga terjangkau dan fasilitas lengkap.</p>
                 </div>
                 <div class="col-md-4 mb-4 mb-md-0">
@@ -301,7 +301,7 @@ $facilities = explode(",", $room['facilities']);
             </div>
             <hr>
             <div class="text-center">
-                <p class="mb-0">&copy; 2023 Hotel Booking. All rights reserved.</p>
+                <p class="mb-0">&copy; 2023 LuxStay. All rights reserved.</p>
             </div>
         </div>
     </footer>

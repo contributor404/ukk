@@ -51,7 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Hotel Booking</title>
+    <title>Register - LuxStay</title>
     <!-- Custom CSS -->
     <style>
         body {
@@ -102,7 +102,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="col-md-6">
                 <div class="register-card">
                     <div class="register-header">
-                        <h1>Hotel Booking</h1>
+                        <h1>LuxStay</h1>
                         <p class="text-muted">Daftar akun baru</p>
                     </div>
                     
