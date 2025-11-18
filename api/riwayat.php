@@ -35,6 +35,7 @@ $data = [];
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
+        $row["room_image"] = $row["room_image"] != null ? explode(",", $row["room_image"]) : null;
         $data[] = $row;
     }
     echo json_encode([

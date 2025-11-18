@@ -7,7 +7,7 @@ include 'bootstrap.php';
 // Cek apakah ada parameter id
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     echo '<script>
-            alert("Anda sudah pernah pesan kamar ini.");
+            alert("ID kamar tidak valid.");
             window.location.href = "index.php";
           </script>';
     exit;
@@ -22,14 +22,15 @@ $id = $_GET['id'];
 $user_id = $_SESSION["user_id"];
 
 // Query untuk mengambil data tipe kamar berdasarkan id
+// Perhatian: room_image kini mengambil SEMUA nama file gambar dari satu kamar yang tersedia
 $query = "SELECT
     rt.*,
     (
         SELECT r.image
         FROM rooms r
-        WHERE r.room_type_id = rt.id
+        WHERE r.room_type_id = rt.id AND r.status = 'available'
         LIMIT 1
-    ) AS room_image,
+    ) AS room_images_string,
     (
         SELECT COUNT(*)
         FROM rooms r
@@ -45,13 +46,31 @@ $result = $koneksi->query($query);
 // Cek apakah data ditemukan
 if ($result->num_rows == 0) {
     echo '<script>
-            alert("Kamar tidak tersedia.");
-            window.location.href = "index.php";
+            alert("Tipe kamar tidak ditemukan.");
+            window->location.href = "index.php";
           </script>';
     exit;
 }
 
 $room = $result->fetch_assoc();
+
+// --- LOGIKA PERBAIKAN GAMBAR DIMULAI DI SINI ---
+$images_string = $room['room_images_string'] ?? ''; // Ambil string gambar atau string kosong jika null
+$room_images = [];
+
+if (!empty($images_string)) {
+    // Pisahkan string menjadi array, lalu bersihkan (trim) setiap elemennya
+    $room_images = array_map('trim', explode(',', $images_string));
+    // Hapus elemen kosong jika ada
+    $room_images = array_filter($room_images);
+}
+
+// Tambahkan gambar placeholder jika kurang dari 4 (opsional, tergantung desain)
+// while (count($room_images) < 4) {
+//     $room_images[] = 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg'; 
+// }
+// --- LOGIKA PERBAIKAN GAMBAR SELESAI ---
+
 
 if ($room["available_rooms"] == "0") {
     echo '<script>
@@ -61,18 +80,21 @@ if ($room["available_rooms"] == "0") {
     exit;
 }
 
-$qq = "SELECT r.*, r.id AS unix_room_id, b.*, b.status AS booking_status FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = $user_id";
+// Cek apakah user sudah booking kamar ini
+$qq = "SELECT r.*, r.id AS unix_room_id, b.*, b.status AS booking_status FROM bookings b INNER JOIN rooms r ON r.id = b.room_id WHERE user_id = $user_id AND (b.status = 'pending' OR b.status = 'checked_in')";
 $res = $koneksi->query($qq);
 
-$ress = $res->fetch_assoc();
-
-if (isset($ress) && $ress["room_type_id"] == $id && $ress["booking_status"] != "checked_out") {
-    echo '<script>
-            alert("Anda sudah pernah pesan kamar ini.");
-            window.location.href = "index.php";
-          </script>';
-    exit;
+if ($res && $res->num_rows > 0) {
+    $ress = $res->fetch_assoc();
+    if ($ress["room_type_id"] == $id) {
+        echo '<script>
+                alert("Anda sudah memesan kamar ini dan statusnya masih aktif.");
+                window.location.href = "index.php";
+              </script>';
+        exit;
+    }
 }
+
 
 // Format harga
 $formatted_price = number_format($room['price_per_night'], 0, ',', '.');
@@ -88,10 +110,20 @@ $facilities = explode(",", $room['facilities']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $room['name'] ?> - Hotel Booking</title>
     <style>
-        .room-image {
+        .main-room-image {
             height: 400px;
             object-fit: cover;
             border-radius: 10px;
+        }
+
+        .thumbnail-image {
+            height: 150px;
+            /* Tambahkan tinggi agar konsisten */
+            object-fit: cover;
+            border-radius: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+            /* Tambahkan sedikit jarak antar thumbnail */
         }
 
         .facility-item {
@@ -113,17 +145,10 @@ $facilities = explode(",", $room['facilities']);
         .availability-badge {
             font-size: 1.2rem;
         }
-
-        .booking-form {
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-        }
     </style>
 </head>
 
 <body>
-    <!-- Room Detail Section -->
     <div class="container my-5">
         <div class="row mb-4">
             <div class="col-12">
@@ -138,25 +163,38 @@ $facilities = explode(",", $room['facilities']);
         </div>
 
         <div class="row">
-            <!-- Room Images -->
             <div class="col-lg-8 mb-4">
-                <img src="<?= !empty($room['room_image']) ? "./uploads/kamar/" . (String)$room['room_image'] : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg' ?>"
-                    class="img-fluid room-image w-100 mb-4" alt="<?= $room['name'] ?>">
+                <?php
+                // Tentukan gambar utama
+                $main_image_url = !empty($room_images)
+                    ? "./uploads/kamar/" . $room_images[0]
+                    : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg';
+                ?>
+                <img src="<?= $main_image_url ?>"
+                    class="img-fluid main-room-image w-100 mb-4" alt="<?= $room['name'] ?> Main Image">
 
                 <div class="row">
-                    <div class="col-4">
-                        <img src="https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg" class="img-fluid rounded" alt="Bathroom">
-                    </div>
-                    <div class="col-4">
-                        <img src="https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg" class="img-fluid rounded" alt="Bed">
-                    </div>
-                    <div class="col-4">
-                        <img src="https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg" class="img-fluid rounded" alt="View">
-                    </div>
+                    <?php
+                    // Tampilkan gambar thumbnail (mulai dari indeks 1)
+                    $thumbnails = array_slice($room_images, 1);
+                    $total_thumbnails = count($thumbnails);
+
+                    // Maksimal 3 thumbnail yang ditampilkan
+                    for ($i = 0; $i < 3; $i++):
+                        $image_url = isset($thumbnails[$i])
+                            ? "./uploads/kamar/" . $thumbnails[$i]
+                            : 'https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg'; // Placeholder untuk gambar yang tidak ada
+
+                        // Kolom dibagi rata (3 thumbnail = col-4)
+                        $col_class = 'col-4';
+                    ?>
+                        <div class="<?= $col_class ?>">
+                            <img src="<?= $image_url ?>" class="img-fluid rounded thumbnail-image" alt="Gallery Image <?= $i + 2 ?>">
+                        </div>
+                    <?php endfor; ?>
                 </div>
             </div>
 
-            <!-- Room Info -->
             <div class="col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
@@ -226,7 +264,6 @@ $facilities = explode(",", $room['facilities']);
             </div>
         </div>
 
-        <!-- Room Description -->
         <div class="row mt-5">
             <div class="col-12">
                 <div class="card shadow-sm">
@@ -239,7 +276,6 @@ $facilities = explode(",", $room['facilities']);
         </div>
     </div>
 
-    <!-- Footer -->
     <footer class="bg-dark text-white py-5 mt-5">
         <div class="container">
             <div class="row">
@@ -270,7 +306,6 @@ $facilities = explode(",", $room['facilities']);
         </div>
     </footer>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

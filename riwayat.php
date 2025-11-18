@@ -170,8 +170,8 @@ include 'bootstrap.php';
                             const totalFormatted = new Intl.NumberFormat("id-ID").format(row.total_price);
 
                             // Gambar default
-                            const image = row.room_image && row.room_image.trim() !== "" ?
-                                "./uploads/kamar/" + row.room_image :
+                            const image = row.room_image && row.room_image[0].trim() !== "" ?
+                                "./uploads/kamar/" + row.room_image[0] :
                                 "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
 
                             // Bangun HTML card

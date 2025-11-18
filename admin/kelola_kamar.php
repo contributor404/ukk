@@ -15,34 +15,59 @@ $upload_dir = '../uploads/kamar/';
 $room_types_result = $koneksi->query("SELECT * FROM room_types");
 $room_types = $room_types_result->fetch_all(MYSQLI_ASSOC);
 
-function handle_upload($file_input_name, $upload_dir)
+/**
+ * Mengunggah banyak file.
+ * @param string $file_input_name Nama input file (misalnya 'image_files').
+ * @param string $upload_dir Direktori unggahan.
+ * @return array|false Daftar nama file baru yang diunggah, atau false jika ada error.
+ */
+function handle_multi_upload($file_input_name, $upload_dir)
 {
-    if (isset($_FILES[$file_input_name]) && $_FILES[$file_input_name]['error'] === UPLOAD_ERR_OK) {
-        $file_tmp_name = $_FILES[$file_input_name]['tmp_name'];
-        $file_name = $_FILES[$file_input_name]['name'];
-        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-        $allowed_ext = ['jpg', 'jpeg', 'png', 'gif'];
+    $uploaded_files = [];
+    $allowed_ext = ['jpg', 'jpeg', 'png', 'gif'];
 
-        if (in_array($file_ext, $allowed_ext)) {
-            $new_file_name = uniqid() . '_' . time() . '.' . $file_ext;
-            $destination = $upload_dir . $new_file_name;
+    // Periksa apakah input file diatur dan merupakan array
+    if (isset($_FILES[$file_input_name]) && is_array($_FILES[$file_input_name]['name'])) {
+        $file_count = count($_FILES[$file_input_name]['name']);
 
-            if (move_uploaded_file($file_tmp_name, $destination)) {
-                return $new_file_name;
-            } else {
-                return false;
+        for ($i = 0; $i < $file_count; $i++) {
+            // Hanya proses file yang diunggah tanpa error
+            if ($_FILES[$file_input_name]['error'][$i] === UPLOAD_ERR_OK) {
+                $file_tmp_name = $_FILES[$file_input_name]['tmp_name'][$i];
+                $file_name = $_FILES[$file_input_name]['name'][$i];
+                $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+                if (in_array($file_ext, $allowed_ext)) {
+                    $new_file_name = uniqid() . '_' . time() . '.' . $file_ext;
+                    $destination = $upload_dir . $new_file_name;
+
+                    if (move_uploaded_file($file_tmp_name, $destination)) {
+                        $uploaded_files[] = $new_file_name;
+                    } else {
+                        // Jika gagal upload, hapus file yang sudah terlanjur terupload di iterasi sebelumnya
+                        foreach ($uploaded_files as $f) {
+                            delete_old_image($f, $upload_dir);
+                        }
+                        return false; // Gagal di tengah jalan
+                    }
+                }
             }
         }
     }
-    return null; // No file uploaded or upload error
+    return $uploaded_files;
 }
 
 // Helper function to delete old file
 function delete_old_image($file_name, $upload_dir)
 {
-    global $upload_dir;
-    if (!empty($file_name) && file_exists($upload_dir . $file_name)) {
-        unlink($upload_dir . $file_name);
+    // Mengambil semua nama file dari string yang dipisahkan koma
+    $file_list = explode(',', $file_name);
+
+    foreach ($file_list as $f) {
+        $f = trim($f);
+        if (!empty($f) && $f != 'default.jpg' && file_exists($upload_dir . $f)) {
+            unlink($upload_dir . $f);
+        }
     }
 }
 
@@ -53,13 +78,18 @@ if (isset($_POST['add_room'])) {
     $room_type_id = $_POST['room_type_id'];
     $floor = $_POST['floor'];
 
-    // Lakukan Unggahan File
-    $image_name = handle_upload('image_file', $upload_dir);
+    // Lakukan Unggahan Multi File
+    $image_names_array = handle_multi_upload('image_files', $upload_dir);
 
-    if ($image_name === false) {
-        $message = "<div class='alert alert-danger'>Gagal mengunggah gambar. Pastikan format file benar (jpg, jpeg, png, gif) dan ukuran tidak melebihi batas.</div>";
+    if ($image_names_array === false) {
+        $message = "<div class='alert alert-danger'>Gagal mengunggah beberapa gambar. Pastikan format file benar (jpg, jpeg, png, gif) dan ukuran tidak melebihi batas.</div>";
+    } elseif (empty($image_names_array)) {
+        // Jika tidak ada file yang diunggah
+        $image_to_save = 'default.jpg';
+        $message = "<div class='alert alert-warning'>Tidak ada gambar diunggah. Menggunakan gambar default.</div>";
     } else {
-        $image_to_save = $image_name ?? 'default.jpg'; // Gunakan default jika unggahan gagal/tidak ada
+        // Gabungkan nama file menjadi string yang dipisahkan koma
+        $image_to_save = implode(',', $image_names_array);
 
         // Cek duplikasi nomor kamar
         $check = $koneksi->prepare("SELECT id FROM rooms WHERE room_number = ?");
@@ -74,15 +104,17 @@ if (isset($_POST['add_room'])) {
                 $message = "<div class='alert alert-success'>Kamar berhasil ditambahkan!</div>";
             } else {
                 $message = "<div class='alert alert-danger'>Gagal menambahkan kamar: " . $stmt->error . "</div>";
-                if ($image_name) {
-                    delete_old_image($image_name, $upload_dir); // Hapus file jika DB gagal
+                // Hapus file jika DB gagal (hanya jika bukan 'default.jpg')
+                if ($image_to_save != 'default.jpg') {
+                    delete_old_image($image_to_save, $upload_dir);
                 }
             }
             $stmt->close();
         } else {
             $message = "<div class='alert alert-warning'>Nomor kamar sudah terdaftar!</div>";
-            if ($image_name) {
-                delete_old_image($image_name, $upload_dir); // Hapus file jika nomor kamar duplikat
+            // Hapus file jika nomor kamar duplikat
+            if ($image_to_save != 'default.jpg') {
+                delete_old_image($image_to_save, $upload_dir);
             }
         }
         $check->close();
@@ -96,31 +128,30 @@ if (isset($_POST['edit_room'])) {
     $room_type_id = $_POST['room_type_id'];
     $floor = $_POST['floor'];
     $status = $_POST['status'];
-    $old_image = $_POST['old_image']; // Ambil nama file lama
+    $old_image_string = $_POST['old_image']; // Ambil string file lama (dipisahkan koma)
 
-    // Ambil data kamar saat ini untuk memastikan old_image valid
+    // Ambil data kamar saat ini
     $get_old_room_stmt = $koneksi->prepare("SELECT image FROM rooms WHERE id = ?");
     $get_old_room_stmt->bind_param("i", $id);
     $get_old_room_stmt->execute();
-    $get_old_room_result = $get_old_room_stmt->get_result();
-    $current_room = $get_old_room_result->fetch_assoc();
+    $current_room = $get_old_room_stmt->get_result()->fetch_assoc();
     $get_old_room_stmt->close();
 
-    $image_to_save = $current_room['image']; // Default: pertahankan gambar lama
+    $image_to_save = $current_room['image']; // Default: pertahankan string gambar lama
 
-    // Lakukan Unggahan File (hanya jika ada file baru diunggah)
-    $new_image_name = handle_upload('edit_image_file', $upload_dir);
+    // Lakukan Unggahan Multi File (hanya jika ada file baru diunggah)
+    $new_image_names_array = handle_multi_upload('edit_image_files', $upload_dir);
 
-    if ($new_image_name === false) {
+    if ($new_image_names_array === false) {
         $message = "<div class='alert alert-danger'>Gagal mengunggah gambar baru. Pastikan format file benar (jpg, jpeg, png, gif) dan ukuran tidak melebihi batas.</div>";
     } else {
-        if ($new_image_name !== null) {
+        if (!empty($new_image_names_array)) {
             // Ada file baru yang berhasil diunggah
-            $image_to_save = $new_image_name;
+            $new_image_string = implode(',', $new_image_names_array);
+            $image_to_save = $new_image_string; // Timpa semua gambar lama dengan yang baru
+
             // Hapus file lama jika ada dan bukan default/kosong
-            if (!empty($current_room['image']) && $current_room['image'] != 'default.jpg') {
-                delete_old_image($current_room['image'], $upload_dir);
-            }
+            delete_old_image($current_room['image'], $upload_dir);
         }
 
         // Perbarui data di database
@@ -132,8 +163,8 @@ if (isset($_POST['edit_room'])) {
         } else {
             $message = "<div class='alert alert-danger'>Gagal memperbarui kamar: " . $stmt->error . "</div>";
             // Jika update DB gagal, tapi file baru sudah diupload, hapus file baru tersebut
-            if ($new_image_name !== null) {
-                delete_old_image($new_image_name, $upload_dir);
+            if (!empty($new_image_names_array)) {
+                delete_old_image($new_image_string, $upload_dir);
             }
         }
         $stmt->close();
@@ -144,7 +175,7 @@ if (isset($_POST['edit_room'])) {
 if (isset($_GET['delete_id'])) {
     $id = $_GET['delete_id'];
 
-    // Ambil nama gambar lama sebelum dihapus dari DB
+    // Ambil string gambar lama sebelum dihapus dari DB
     $get_image_stmt = $koneksi->prepare("SELECT image FROM rooms WHERE id = ?");
     $get_image_stmt->bind_param("i", $id);
     $get_image_stmt->execute();
@@ -156,8 +187,8 @@ if (isset($_GET['delete_id'])) {
     $stmt->bind_param("i", $id);
     if ($stmt->execute()) {
         // Hapus file fisik setelah berhasil dihapus dari DB
-        if ($room_to_delete && !empty($room_to_delete['image']) && $room_to_delete['image'] != 'default.jpg') {
-            delete_old_image($room_to_delete['image'], $upload_dir);
+        if ($room_to_delete && !empty($room_to_delete['image'])) {
+            delete_old_image($room_to_delete['image'], $upload_dir); // Menggunakan fungsi delete_old_image yang sudah diubah
         }
         $message = "<div class='alert alert-success'>Kamar berhasil dihapus!</div>";
     } else {
@@ -172,6 +203,9 @@ if (isset($_GET['delete_id'])) {
 
 
 // --- Logika Pencarian dan Pengurutan (Tidak Berubah) ---
+// ... (Logika pencarian dan pengurutan tetap sama) ...
+
+
 $search_term = $_GET['search'] ?? '';
 $sort_by = $_GET['sort'] ?? 'latest';
 $where_clauses = [];
@@ -269,16 +303,12 @@ if (!empty($params)) {
     $rooms_result = $koneksi->query($query);
     $rooms = $rooms_result->fetch_all(MYSQLI_ASSOC);
 }
-
-// Catatan: Dalam kode PHP sebenarnya, Anda harus menggabungkan logika file handling dan CRUD ke dalam satu blok pengecekan POST/GET agar pesan error file handling dapat ditampilkan dengan benar. Namun, untuk menjaga struktur awal Anda, saya hanya memodifikasi blok CRUD dan helper.
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Kamar - Hotel Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin-style.css">
@@ -355,11 +385,16 @@ if (!empty($params)) {
                                 <tbody>
                                     <?php if (!empty($rooms)): ?>
                                         <?php $no = 1;
-                                        foreach ($rooms as $room): ?>
+                                        foreach ($rooms as $room):
+                                            // Ambil gambar pertama dari string yang dipisahkan koma
+                                            $images = explode(',', $room['image']);
+                                            $first_image = trim($images[0]);
+                                            $image_src = "../uploads/kamar/" . htmlspecialchars($first_image);
+                                        ?>
                                             <tr>
                                                 <th scope="row"><?= $no++ ?></th>
                                                 <td><?= htmlspecialchars($room['room_number']) ?></td>
-                                                <td><img height="100" src="../uploads/kamar/<?= htmlspecialchars($room['image']) ?>" alt="<?= htmlspecialchars($room['room_type_name']) ?>"></td>
+                                                <td><img height="100" src="<?= $image_src ?>" alt="<?= htmlspecialchars($room['room_type_name']) ?>"></td>
                                                 <td><?= htmlspecialchars($room['room_type_name']) ?></td>
                                                 <td><?= htmlspecialchars($room['floor']) ?></td>
                                                 <td>
@@ -381,10 +416,9 @@ if (!empty($params)) {
                                                         data-type-id="<?= $room['room_type_id'] ?>"
                                                         data-floor="<?= $room['floor'] ?>"
                                                         data-status="<?= $room['status'] ?>"
-                                                        data-image="<?= htmlspecialchars($room['image']) ?>">
-                                                        <i class="fas fa-edit"></i>
+                                                        data-image="<?= htmlspecialchars($room['image']) ?>"> <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <a href="kelola_kamar.php?delete_id=<?= $room['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus kamar ini? Ini akan menghapus file gambar terkait dan setiap pemesanan (booking) yang mengacu ke kamar ini.');">
+                                                    <a href="kelola_kamar.php?delete_id=<?= $room['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus kamar ini? Ini akan menghapus semua file gambar terkait dan setiap pemesanan (booking) yang mengacu ke kamar ini.');">
                                                         <i class="fas fa-trash"></i>
                                                     </a>
                                                 </td>
@@ -432,8 +466,8 @@ if (!empty($params)) {
                             <input type="number" class="form-control" id="floor" name="floor" required min="1">
                         </div>
                         <div class="mb-3">
-                            <label for="image_file" class="form-label">Unggah Gambar (JPG, PNG, GIF)</label>
-                            <input type="file" class="form-control" id="image_file" name="image_file" accept=".jpg, .jpeg, .png, .gif" required>
+                            <label for="image_files" class="form-label">Unggah Gambar (Maks. 4 File - JPG, PNG, GIF)</label>
+                            <input type="file" class="form-control" id="image_files" name="image_files[]" accept=".jpg, .jpeg, .png, .gif" multiple required>
                             <div class="form-text">File akan disimpan di: **`uploads/kamar/`**</div>
                         </div>
                     </div>
@@ -482,10 +516,10 @@ if (!empty($params)) {
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="edit_image_file" class="form-label">Unggah Gambar Baru (Biarkan kosong untuk mempertahankan gambar lama)</label>
-                            <input type="file" class="form-control" id="edit_image_file" name="edit_image_file" accept=".jpg, .jpeg, .png, .gif">
+                            <label for="edit_image_files" class="form-label">Unggah Gambar Baru (Maks. 4 File - Biarkan kosong untuk mempertahankan gambar lama)</label>
+                            <input type="file" class="form-control" id="edit_image_files" name="edit_image_files[]" accept=".jpg, .jpeg, .png, .gif" multiple>
                             <div class="form-text">Gambar lama: <span id="current_image_name"></span></div>
-                            <div class="form-text">Jika file diunggah, file lama akan dihapus dari **`uploads/kamar/`**.</div>
+                            <div class="form-text">Jika file diunggah, **SEMUA** file lama akan diganti. File baru akan disimpan di **`uploads/kamar/`**.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -512,18 +546,18 @@ if (!empty($params)) {
             button.addEventListener('click', function() {
                 // Set data ke input tersembunyi dan field lain
                 document.getElementById('edit_room_id').value = this.dataset.id;
-                document.getElementById('edit_old_image').value = this.dataset.image; // Simpan nama file lama
+                document.getElementById('edit_old_image').value = this.dataset.image; // Simpan string file lama (dipisahkan koma)
 
                 document.getElementById('edit_room_number').value = this.dataset.number;
                 document.getElementById('edit_room_type_id').value = this.dataset.typeId;
                 document.getElementById('edit_floor').value = this.dataset.floor;
                 document.getElementById('edit_status').value = this.dataset.status;
 
-                // Tampilkan nama file saat ini
+                // Tampilkan nama file saat ini (string koma-separated)
                 document.getElementById('current_image_name').textContent = this.dataset.image || 'Tidak ada gambar';
 
                 // Kosongkan input file untuk unggahan baru
-                document.getElementById('edit_image_file').value = '';
+                document.getElementById('edit_image_files').value = '';
             });
         });
     </script>

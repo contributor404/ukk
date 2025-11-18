@@ -172,7 +172,7 @@ include 'bootstrap.php'
                                 icons += `<span class="me-3"><i class="fas ${icon} me-1"></i> ${facility}</span>`;
                             });
 
-                            room.room_image = room.room_image ? "./uploads/kamar/" + room.room_image : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
+                            room.room_image = room.room_image ? "./uploads/kamar/" + room.room_image[0] : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
 
                             // Susun card kamar
                             const html = `

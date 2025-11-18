@@ -135,7 +135,7 @@ include 'bootstrap.php';
                                 icons += `<span class="me-3"><i class="fas ${icon} me-1"></i> ${facility}</span>`;
                             });
 
-                            room.image = room.image ? "./uploads/kamar/" + room.image : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
+                            room.image = room.image ? "./uploads/kamar/" + room.image[0] : "https://i.pinimg.com/736x/42/b6/8c/42b68cd2490f7a0467234a71b4d4d6fb.jpg";
 
                             // Susun card kamar
                             const html = `

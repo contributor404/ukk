@@ -14,6 +14,11 @@ $data = [];
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
+        if (isset($_GET["location"]) && $_GET["location"] == "home") {
+            $row["image"] = $row["image"] != null ? explode(",", $row["image"]) : null;
+        } else {
+            $row["room_image"] = $row["room_image"] != null ? explode(",", $row["room_image"]) : null;
+        }
         $data[] = $row;
     }
     echo json_encode([
